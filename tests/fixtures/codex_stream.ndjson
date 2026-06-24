@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"codex-thread-live-1"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"failed to parse hooks config /root/.codex/hooks.json: unknown field `description`"}}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'echo yanshi-probe'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc 'echo yanshi-probe'","aggregated_output":"yanshi-probe\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"done"}}
+{"type":"turn.completed","usage":{"input_tokens":16442,"cached_input_tokens":3456,"output_tokens":21,"reasoning_output_tokens":14}}

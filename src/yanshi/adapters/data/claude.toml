@@ -1,0 +1,22 @@
+name = "claude"
+prompt_mode = "stdin"
+seed_paths = [
+  ".claude.json",
+  ".claude/settings.json",
+  ".claude/.credentials.json",
+  ".claude/auth.json",
+]
+
+[capabilities]
+effort = "flag"
+context_window_flag = false
+session_resume = true
+preassign_session_id = true
+output_schema = true
+stream_json = true
+permission_modes = ["read-only", "yolo"]
+
+[flags]
+stream = ["--output-format", "stream-json", "--verbose"]
+read_only = ["--allowedTools", "Read,Grep,Glob,LS,WebFetch,WebSearch"]
+yolo = ["--dangerously-skip-permissions"]

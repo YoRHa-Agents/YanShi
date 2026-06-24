@@ -1,0 +1,4 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"/repo","session_id":"cursor-session-live-1","model":"GPT-5.5 272K Medium","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Reply with pong"}]},"session_id":"cursor-session-live-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"pong"}]},"session_id":"cursor-session-live-1"}
+{"type":"result","subtype":"success","duration_ms":11158,"duration_api_ms":11158,"is_error":false,"result":"pong","session_id":"cursor-session-live-1","request_id":"req-live-1","usage":{"inputTokens":22865,"outputTokens":121,"cacheReadTokens":0,"cacheWriteTokens":0}}

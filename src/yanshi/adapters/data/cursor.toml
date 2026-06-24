@@ -1,0 +1,12 @@
+name = "cursor"
+prompt_mode = "argument"
+seed_paths = [".cursor/cli-config.json"]
+
+[capabilities]
+effort = "model_suffix"
+context_window_flag = false
+session_resume = true
+preassign_session_id = false
+output_schema = false
+stream_json = true
+permission_modes = ["read-only", "yolo"]
