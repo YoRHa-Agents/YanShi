@@ -24,6 +24,41 @@ yanshi doctor
 yanshi doctor
 ```
 
+## init
+
+写入一份带注释的起始配置(模板见 [配置](../reference/configuration.md))。默认写本地的 `./.yanshi.toml`,或用 `--global` 写全局的 `$YANSHI_HOME/config.toml`。
+
+```text
+yanshi init [--global | --local] [--force]
+```
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| `--global` / `--local` | `--local` | 写全局的 `$YANSHI_HOME/config.toml` 而非 `./.yanshi.toml`。 |
+| `--force` | 关 | 覆盖已存在的配置文件。 |
+
+**拒绝覆盖**已存在的目标,除非传入 `--force`:它会把 `refusing to overwrite existing config: <path> (use --force)` 打印到 stderr 并以 `1` 退出。成功时写入模板并把解析后的路径打印到 stdout。
+
+```bash
+yanshi init                 # write ./.yanshi.toml
+yanshi init --global        # write $YANSHI_HOME/config.toml
+yanshi init --force         # overwrite an existing file
+```
+
+## config
+
+把生效的分层配置及其 provenance 以 JSON 打印——内置默认 < 全局 `$YANSHI_HOME/config.toml` < 本地 `./.yanshi.toml`。便于回答"这个默认到底从哪来?"。
+
+```text
+yanshi config
+```
+
+该 JSON 有四个 key:`config`(完整解析后的文档)、`sources`(有贡献的文件,低→高)、`provenance`(每个顶层 section 映射到 `builtin` 或最后设置它的文件)以及 `enabled_adapters`(`[adapters].enabled` 列表,或 `null` 表示全部)。schema 与优先级规则见 [配置](../reference/configuration.md)。
+
+```bash
+yanshi config
+```
+
 ## dispatch
 
 通过监控内核运行一次阻塞式派发,并打印终态的 `RunResult`。
@@ -39,11 +74,14 @@ yanshi dispatch [OPTIONS] [PROMPT]
 | `--model` | — | 透传给适配器的 model id。 |
 | `--effort` | — | 推理 effort:`low`、`medium`、`high` 或 `xhigh`。 |
 | `--allow` | `read-only` | 权限模式:`read-only` 或 `yolo`。 |
+| `--profile` | — | 选用的命名配置 profile(`[profiles.NAME]`);未知名字会 warn 并被忽略。 |
 | `--workdir` | — | 子进程工作目录。 |
 | `--timeout` | — | 墙钟超时秒数。 |
 | `--wait` / `--no-wait` | `--wait` | CLI 派发是阻塞的;`--no-wait` 会被拒绝(后台运行请使用库)。 |
 
 当结果为错误时以 `1` 退出,非法调用(例如 `--no-wait` 或非法的 `--effort`)时以 `2` 退出。
+
+未设置的 flag 会从解析后的配置填充:先 `[defaults]`,再任何 `--profile` 预设,然后是你显式给的 flag,最后由 `[limits]` 夹取。解析期间的 warning——未知的 `--profile`,或被夹取的能力——会以 JSON `WarningRecord` 形式打印到 **stderr**,且绝不中断运行。参见 [配置](../reference/configuration.md)。
 
 ```bash
 yanshi dispatch --cli claude --model sonnet --effort high "Inspect the failing tests"
@@ -65,6 +103,7 @@ yanshi improve [OPTIONS] [PROMPT]
 | `--model` | — | 透传的 model id。 |
 | `--effort` | — | 推理 effort:`low`、`medium`、`high`、`xhigh`。 |
 | `--allow` | `read-only` | 权限模式。 |
+| `--profile` | — | 选用的命名配置 profile(`[profiles.NAME]`);未知名字会 warn 并被忽略。 |
 | `--workdir` | — | 子进程工作目录。 |
 | `--timeout` | — | 每次派发的墙钟超时秒数。 |
 | `--check` | — | 确定性闸门命令(退出 `0` = 通过)。用 `shlex` 解析,仅以 argv 方式运行。 |
@@ -73,6 +112,8 @@ yanshi improve [OPTIONS] [PROMPT]
 | `--critic` / `--no-critic` | `--no-critic` | 启用建议性的 LLM critic。 |
 
 当循环未成功时以 `1` 退出,当 `--max-iterations` 小于 1 时以 `2` 退出。
+
+`--profile` 与由配置驱动的默认值/天花板解析,与 [`dispatch`](#dispatch) 完全一致;夹取与未知 profile 的 warning 都走 **stderr**。
 
 ```bash
 yanshi improve --cli claude "fix failing tests" --check "uv run pytest -q" --max-iterations 3

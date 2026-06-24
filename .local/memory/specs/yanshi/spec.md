@@ -1,11 +1,12 @@
-# YanShi 设计规范 (Design Spec) v0.3
+# YanShi 设计规范 (Design Spec) v0.4
 
 > 源头需求: `.local/human/input/what_i_want.md`
 > 调研依据: 本机四个 CLI 实测 + 2026 官方文档 + `/home/agent/reference/` 下 14 个参考仓库的源码精读
-> 最后更新: 2026-06-18 00:20 (UTC+8)
+> 最后更新: 2026-06-25 (UTC+8)
 > 配套文档: `design-analysis.md`(完备性缺口分析)、`implementation-path.md`(实现路径)、`governance.md`(管控规范)
 > v0.2 review 补足: 契约补全(RunResult/Usage/Capabilities)、运行时与进程模型(§11)、多 agent 编排与路由(§12)、持久化布局(§13)。
 > v0.3 收敛: 运行时收敛为"一内核+两入口(A 库/MCP 默认 / B CLI `--wait`)+纯磁盘读",去除 fire-and-forget detached 监控(§11);cursor 命令解析 `cursor-agent`→`agent` 回退、effort/用户 model 冲突规则(§4);cost ceiling 无原生定价降级(§6)。功能范围不变(4 CLI / 全特性 / 4 文档)。
+> v0.4 收敛: 新增**初始化与仓库级配置**(§14)——`.yanshi.toml`(walk-up 发现)/全局 `config.toml` 分层与优先级、`[adapters].enabled` 适配器启用、摘要器实现为超轻量 agent-CLI 调用、`[defaults]`/`[profiles]` 解析 + `[limits]` 天花板夹取(必 warn)、`yanshi init`/`config` 与 `--profile`;响应 v1.0.0 反馈(初始化阶段 + 仓库级配置,不同工作区不同可用配置),管控见 governance G11。
 
 ## 1. 定位与目标
 
@@ -312,6 +313,113 @@ $YANSHI_HOME (默认 ~/.yanshi)/
 - 写 `run.json`/`AgentStatus` **MUST** 原子(临时文件 + rename + flock),mode 0600。
 - `owner_pid` 为监控宿主(入口 A 长驻进程 / 入口 B 阻塞进程)pid;读者据其存活校验,陈旧 `running` 且 owner 已死 → 纠正为 `stalled`(无 detached 监控,故不依赖独立 heartbeat 线程)。
 - 保留策略:终态 agent 目录默认保留 N 天后 GC(`yanshi gc`),`stream.ndjson` 超过上限即 ring-buffer 截断(不静默丢——计数 + 标注)。
+
+## 14. 初始化与仓库级配置 (Configuration & Initialization)
+
+v1.0.0 反馈指出:缺一个**初始化阶段** + **仓库级配置**,用于声明(1)启用哪些适配器、(2)摘要如何运行(应是一次 agent-CLI 的超轻量调用)、(3)可配置的调用默认值与级别;且**必须按仓库/工作区作用域**——不同工作区有不同的可用配置。本节定义该配置契约。配置只在**派发前**收敛出最终 `RunSpec`,不改变 §3 契约本身,也不改变 §5/§6 的运行时不变量。
+
+### 14.1 配置文件与发现(discovery)
+- **本地(工作区)配置 `.yanshi.toml`**:从 `cwd` 沿父目录**向上 walk 至文件系统根**,取**首个**遇到的 `.yanshi.toml` 即为该工作区的 local 配置(同 git 发现 `.git` 的语义)。未找到则无 local 层。
+- **全局配置 `$YANSHI_HOME/config.toml`**(默认 `~/.yanshi/config.toml`,与 §13 磁盘根同位)。两份文件**同构**(section/字段一致),仅作用域不同。
+- 配置均为 **TOML**;格式错误(语法/类型不符)MUST 抛明确错误,不得静默忽略(见 G11.6)。
+
+### 14.2 分层与优先级(precedence)
+有效配置由四层**逐 section deep-merge** 合成,低→高:
+
+```
+内置默认 (built-in defaults)
+   └< 全局 config.toml ($YANSHI_HOME/config.toml)
+        └< 本地 .yanshi.toml (walk-up 命中的工作区文件)
+             └< 每次调用覆盖 (RunSpec 字段 / CLI flag)   ← 最高
+```
+
+- 合并按 **section 内深合并**;同一 key 冲突时**高层覆盖低层**(local 覆盖 global)。
+- 这是"不同工作区不同可用配置"的落点:同一台机器、不同仓库,各自的 `.yanshi.toml` 给出不同的启用集 / 默认 / profiles / 天花板。
+
+### 14.3 `.yanshi.toml` schema(全量字段)
+全局 `config.toml` 与本地 `.yanshi.toml` 共用以下 schema:
+
+```toml
+# .yanshi.toml — 工作区级配置(walk-up 发现);与 $YANSHI_HOME/config.toml 同构
+# 分层(低→高): 内置默认 < 全局 config.toml < 本地 .yanshi.toml < 每次调用覆盖(RunSpec/CLI flag)
+
+[adapters]
+# 启用的适配器子集 ⊆ {claude, codex, cursor, gemini};默认 = 全部四个。
+# 仅 enabled 的适配器被注册,且仅它们被 doctor 校验。
+enabled = ["claude", "codex", "cursor", "gemini"]
+
+[summarizer]
+# 摘要器 = 一次"超轻量 one-shot agent-CLI 调用"(build_command + 阻塞执行 + 解析 reply),
+# 而非被递归监控的 dispatch。任何错误/超预算 MUST 降级为 §5 确定性"拼接显著事件"兜底。
+enabled = false                # 默认 false(向后兼容):关闭即恒走确定性兜底
+cli = "claude"                 # 跑摘要所用的 agent-CLI(必须在 [adapters].enabled 内)
+model = "claude-haiku-latest"  # 便宜档(haiku/flash/mini tier,见 G5.4)
+debounce_s = 5                 # 最小触发间隔(秒,≥5,见 G2.6)
+min_new_events = 2             # 触发所需的最小新增"显著事件"数(见 G2.6)
+max_tokens = 150               # 摘要输出上限(token,≤150,见 G2.6)
+watcher_token_ceiling = 1000   # 摘要器累计 token 预算上限;超出即降级(见 G5.4)
+timeout_s = 30                 # 单次摘要调用的墙钟超时;超时即降级
+
+[defaults]
+# 填充每次派发缺省字段;被显式 RunSpec 字段 / CLI flag 覆盖。
+cli = "claude"
+model = "claude-sonnet-latest"
+effort = "medium"              # low|medium|high|xhigh;TOML 键 effort → RunSpec.reasoning_effort
+allow = "read-only"            # read-only | yolo
+timeout_s = 1800               # 总墙钟超时(秒)
+stall_timeout_s = 300          # 无输出停滞超时(秒)
+cost_ceiling_usd = 5.0         # per-run 成本上限(USD)
+
+[profiles.cheap]
+# 命名预设;字段同 [defaults];派发时经 --profile cheap / 参数选用。
+cli = "gemini"
+model = "gemini-flash-latest"
+effort = "low"
+allow = "read-only"
+cost_ceiling_usd = 1.0
+
+[profiles.thorough]
+effort = "xhigh"
+allow = "yolo"
+cost_ceiling_usd = 20.0
+
+[limits]
+# 工作区天花板:merge 后对生效请求执行 CLAMP;每次实际夹取 MUST 记 WarningRecord(见 G11.2)。
+max_allow = "read-only"        # 权限上限(read-only < yolo):yolo 请求在此被夹回 read-only
+max_cost_usd = 10.0            # cost_ceiling_usd 上限
+max_timeout_s = 3600           # timeout_s 上限
+```
+
+### 14.4 解析算法(resolution)
+对每次派发(可带 `--profile <name>`),最终 `RunSpec` 按下序确定性收敛:
+
+1. **加载 + deep-merge** 配置文件 → effective config(内置 < global < local,§14.2)。
+2. **选 profile**:若给了 `--profile <name>` 则取 `[profiles.<name>]`;**未知 profile 名 MUST 记 warning 并忽略**(继续按无 profile 解析),MUST NOT crash(见 G11.6)。
+3. **逐字段解析**,优先级 `显式 per-call 覆盖 > profile > defaults > 内置默认`;TOML `effort` 键映射到 `RunSpec.reasoning_effort`。
+4. **clamp by `[limits]`**:对解析后的请求按天花板夹取——`max_allow` 夹 `allow`、`max_cost_usd` 夹 `cost_ceiling_usd`、`max_timeout_s` 夹 `timeout_s`;**每次实际发生夹取 MUST 产生一条结构化 `WarningRecord`**(No Silent Failures,与 §6 一致)。
+5. **校验 cli ∈ enabled**(§14.5);不在则 fail-fast。
+6. 产出最终 `RunSpec` → 交 `policy.py` 做 §3.7 / G1 派发前校验。
+
+> 解析与命令构建 MUST 确定可复现(同输入→同结果,呼应 G7.1):便于 `yanshi config` 回放与审计快照。
+
+### 14.5 适配器启用(enablement)
+- `[adapters].enabled` ⊆ `{claude, codex, cursor, gemini}`,默认 = 全部。
+- 只有 enabled 的适配器被 `default_registry()` 注册,也只有它们被 `doctor` / preflight(§G3.6)检查——禁用项不应让 `doctor` 报"缺失"噪声。
+- **请求一个被禁用或未知的适配器 MUST fail-fast**,错误信息清晰列出当前 enabled 集合(MUST NOT 静默回退到其它 CLI;路由回退仅在 §12.3 显式启用时才发生,且仍受 enabled 集约束)。
+
+### 14.6 摘要器即"超轻量 agent-CLI 调用"(light agent-call)
+本节细化 §5 Summarizer 在配置下的实现形态:
+- **形态**:摘要器是一次 **one-shot agent-CLI 调用**——用 `[summarizer].cli`/`model` 经适配器 `build_command` 构造命令,**阻塞执行**至完成,**解析其 reply** 作为 `rolling_summary`。它**不是**被 StreamPump/Supervisor 递归监控的 dispatch,不落 `agents/<id>/`,不递归生成子摘要(避免"监控摘要器又要摘要"的回归)。
+- **back-compat 开关**:`enabled` 默认 `false`;关闭时摘要恒为 §5 确定性"拼接最近显著事件"兜底,行为与既有版本一致。
+- **节流/预算**:触发沿用 §5/G2.6(`debounce_s` + `min_new_events`,输出 `max_tokens` ≤150);摘要器自身花费受 `watcher_token_ceiling` 与 `timeout_s` 双重约束,并按 G5.4 单独计量、选便宜档模型。
+- **强制降级**:**任何**错误(摘要 CLI 缺失/鉴权失败/超时/reply 解析失败)或预算耗尽,MUST 降级为确定性兜底(G2.7),**MUST NOT** 阻塞、报错中断或拖慢**被监控的主 run**。降级须记 warning,可审计。
+
+### 14.7 CLI 表面(init / config / --profile)
+- `yanshi init [--global|--local] [--force]`:scaffold 配置文件。`--local`(默认)在 `cwd` 写 `.yanshi.toml`;`--global` 写 `$YANSHI_HOME/config.toml`。**目标已存在且未给 `--force` 时 MUST 拒绝覆盖并报明确错误**(No Silent Failures,见 G11.8),不静默改写用户既有配置。
+- `yanshi config`:打印**解析后的分层有效配置 + provenance**——每个值标注来自哪一层(built-in / global / local / per-call override),便于排查"这个默认到底从哪来"。
+- `yanshi dispatch` / `yanshi improve`:新增 `--profile <name>`,选用 `[profiles.<name>]` 预设(解析顺序见 §14.4)。
+
+> 交叉引用:摘要器运行时语义见 **§5**;`allow`/cost/审批等安全边界见 **§6**;配置文件落盘位置(`$YANSHI_HOME/config.toml` 与 §13 磁盘根同位)见 **§13**。配置层的规范性管控见 governance **G11**。
 
 
 

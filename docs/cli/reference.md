@@ -25,6 +25,50 @@ and exits non-zero if **any** adapter fails preflight.
 yanshi doctor
 ```
 
+## init
+
+Write a commented starter config (the template documented in
+[Configuration](../reference/configuration.md)). Writes the local `./.yanshi.toml` by default, or the
+global `$YANSHI_HOME/config.toml` with `--global`.
+
+```text
+yanshi init [--global | --local] [--force]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--global` / `--local` | `--local` | Write the global `$YANSHI_HOME/config.toml` instead of `./.yanshi.toml`. |
+| `--force` | off | Overwrite an existing config file. |
+
+**Refuses to overwrite** an existing target unless `--force` is passed: it prints
+`refusing to overwrite existing config: <path> (use --force)` to stderr and exits `1`. On success it
+writes the template and prints the resolved path to stdout.
+
+```bash
+yanshi init                 # write ./.yanshi.toml
+yanshi init --global        # write $YANSHI_HOME/config.toml
+yanshi init --force         # overwrite an existing file
+```
+
+## config
+
+Print the effective layered configuration and its provenance as JSON — built-in defaults < global
+`$YANSHI_HOME/config.toml` < local `./.yanshi.toml`. Useful for answering "where did this default come
+from?".
+
+```text
+yanshi config
+```
+
+The JSON has four keys: `config` (the fully resolved document), `sources` (the files that contributed,
+low → high), `provenance` (each top-level section mapped to `builtin` or the file that last set it),
+and `enabled_adapters` (the `[adapters].enabled` list, or `null` for all). See
+[Configuration](../reference/configuration.md) for the schema and precedence rules.
+
+```bash
+yanshi config
+```
+
 ## dispatch
 
 Run a single blocking dispatch through the monitor kernel and print the terminal `RunResult`.
@@ -40,12 +84,18 @@ yanshi dispatch [OPTIONS] [PROMPT]
 | `--model` | — | Model id passed through to the adapter. |
 | `--effort` | — | Reasoning effort: `low`, `medium`, `high`, or `xhigh`. |
 | `--allow` | `read-only` | Permission mode: `read-only` or `yolo`. |
+| `--profile` | — | Named config profile to apply (`[profiles.NAME]`); an unknown name warns and is ignored. |
 | `--workdir` | — | Child process working directory. |
 | `--timeout` | — | Wall-clock timeout in seconds. |
 | `--wait` / `--no-wait` | `--wait` | CLI dispatch is blocking; `--no-wait` is rejected (use the library for background runs). |
 
 Exits `1` when the result is an error, and `2` for an invalid invocation (for example `--no-wait`
 or an invalid `--effort`).
+
+Unset flags are filled from the resolved config: `[defaults]` first, then any `--profile` preset, then
+your explicit flags, with `[limits]` clamped last. Resolution warnings — an unknown `--profile`, or a
+clamped capability — are printed to **stderr** as JSON `WarningRecord`s and never stop the run. See
+[Configuration](../reference/configuration.md).
 
 ```bash
 yanshi dispatch --cli claude --model sonnet --effort high "Inspect the failing tests"
@@ -67,6 +117,7 @@ yanshi improve [OPTIONS] [PROMPT]
 | `--model` | — | Model id passed through. |
 | `--effort` | — | Reasoning effort: `low`, `medium`, `high`, `xhigh`. |
 | `--allow` | `read-only` | Permission mode. |
+| `--profile` | — | Named config profile to apply (`[profiles.NAME]`); an unknown name warns and is ignored. |
 | `--workdir` | — | Child process working directory. |
 | `--timeout` | — | Per-dispatch wall-clock timeout seconds. |
 | `--check` | — | Deterministic gate command (exit `0` = pass). Parsed with `shlex`, run argv-only. |
@@ -75,6 +126,9 @@ yanshi improve [OPTIONS] [PROMPT]
 | `--critic` / `--no-critic` | `--no-critic` | Enable the advisory LLM critic. |
 
 Exits `1` when the loop did not succeed, and `2` when `--max-iterations` is less than 1.
+
+`--profile` and the config-driven default/limit resolution work exactly as for
+[`dispatch`](#dispatch); clamp and unknown-profile warnings go to **stderr**.
 
 ```bash
 yanshi improve --cli claude "fix failing tests" --check "uv run pytest -q" --max-iterations 3

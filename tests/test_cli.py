@@ -9,7 +9,8 @@ from typer.testing import CliRunner
 
 import yanshi.cli as cli_module
 from yanshi.cli import app
-from yanshi.contracts import AgentState, AgentStatus, RunResult, RunSpec
+from yanshi.config import parse_config_file
+from yanshi.contracts import AgentState, AgentStatus, AllowMode, RunResult, RunSpec
 from yanshi.preflight import PreflightResult
 
 
@@ -128,3 +129,140 @@ def test_cli_record_copies_stream(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 
 def test_console_module_import_keeps_python_executable_visible() -> None:
     assert sys.executable
+
+
+# --------------------------------------------------------------------------- #
+# config-driven CLI: init / config / --profile (G11.x)
+# --------------------------------------------------------------------------- #
+
+
+def _ok_result(spec: RunSpec) -> RunResult:
+    return RunResult(
+        agent_id="a1",
+        cli=spec.cli,
+        state=AgentState.SUCCEEDED,
+        is_error=False,
+        reply="ok",
+    )
+
+
+def test_cli_init_local_writes_parses_and_refuses_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    first = runner.invoke(app, ["init"])
+    assert first.exit_code == 0
+    config_path = tmp_path / ".yanshi.toml"
+    assert config_path.is_file()
+    # The emitted template must parse cleanly through the public parser.
+    parsed = parse_config_file(config_path)
+    assert parsed.adapters.enabled == ["claude", "codex", "cursor", "gemini"]
+    original = config_path.read_text(encoding="utf-8")
+
+    # No --force: refuse (exit 1, No Silent Failures) and leave the file intact.
+    second = runner.invoke(app, ["init"])
+    assert second.exit_code == 1
+    assert "refusing to overwrite" in second.stderr
+    assert config_path.read_text(encoding="utf-8") == original
+
+    # --force: overwrite is allowed.
+    forced = runner.invoke(app, ["init", "--force"])
+    assert forced.exit_code == 0
+    assert config_path.is_file()
+
+
+def test_cli_init_global_writes_to_yanshi_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("YANSHI_HOME", str(tmp_path))
+    result = CliRunner().invoke(app, ["init", "--global"])
+    assert result.exit_code == 0
+    config_path = tmp_path / "config.toml"
+    assert config_path.is_file()
+    parse_config_file(config_path)  # parses cleanly
+
+
+def test_cli_config_outputs_layered_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("YANSHI_HOME", str(home))  # isolate: no global config.toml
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".yanshi.toml").write_text('[adapters]\nenabled = ["claude"]\n', encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["config"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert {"config", "sources", "provenance", "enabled_adapters"} <= payload.keys()
+    assert payload["enabled_adapters"] == ["claude"]
+    assert payload["config"]["adapters"]["enabled"] == ["claude"]
+
+
+def test_cli_dispatch_profile_applies_config_effort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("YANSHI_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".yanshi.toml").write_text('[profiles.cheap]\neffort = "low"\n', encoding="utf-8")
+
+    seen: dict[str, RunSpec] = {}
+
+    async def fake_dispatch(spec: RunSpec) -> RunResult:
+        seen["spec"] = spec
+        return _ok_result(spec)
+
+    monkeypatch.setattr(cli_module, "dispatch_wait_run", fake_dispatch)
+
+    result = CliRunner().invoke(app, ["dispatch", "--profile", "cheap", "hello"])
+    assert result.exit_code == 0
+    assert seen["spec"].reasoning_effort == "low"
+
+
+def test_cli_dispatch_unknown_profile_warns_but_dispatches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("YANSHI_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+
+    seen: dict[str, RunSpec] = {}
+
+    async def fake_dispatch(spec: RunSpec) -> RunResult:
+        seen["spec"] = spec
+        return _ok_result(spec)
+
+    monkeypatch.setattr(cli_module, "dispatch_wait_run", fake_dispatch)
+
+    result = CliRunner().invoke(app, ["dispatch", "--profile", "bogus", "hello"])
+    assert result.exit_code == 0
+    assert "spec" in seen  # still dispatched
+    assert "profile_unknown" in result.stderr  # warning surfaced (No Silent Failures)
+
+
+def test_cli_dispatch_clamps_allow_to_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("YANSHI_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".yanshi.toml").write_text('[limits]\nmax_allow = "read-only"\n', encoding="utf-8")
+
+    seen: dict[str, RunSpec] = {}
+
+    async def fake_dispatch(spec: RunSpec) -> RunResult:
+        seen["spec"] = spec
+        return _ok_result(spec)
+
+    monkeypatch.setattr(cli_module, "dispatch_wait_run", fake_dispatch)
+
+    result = CliRunner().invoke(app, ["dispatch", "--allow", "yolo", "hello"])
+    assert result.exit_code == 0
+    assert seen["spec"].allow == AllowMode.READ_ONLY
+    assert "capability_clamped" in result.stderr

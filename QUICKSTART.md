@@ -2,7 +2,7 @@ English | [简体中文](QUICKSTART.zh-CN.md)
 
 # YanShi Quickstart
 
-> Last-Modified: 2026-06-24
+> Last-Modified: 2026-06-25
 
 Zero to your first monitored dispatch in a few minutes. Full documentation lives at
 <https://yorha-agents.github.io/YanShi/>; this guide is the fast path.
@@ -29,7 +29,47 @@ cd YanShi
 The installer is `uv`-first with a `pip` + `venv` fallback. You can also install directly with
 `uv tool install .`, `uv sync`, or `pip install .`.
 
-## 2. Check your environment — `yanshi doctor`
+## 2. Initialize a workspace config — `yanshi init`
+
+YanShi reads an optional repo-level `.yanshi.toml` (discovered by walking up from the current
+directory, like `.git`). Scaffold a commented starter file:
+
+```bash
+yanshi init                  # writes ./.yanshi.toml; refuses to overwrite without --force
+```
+
+Edit it to enable a subset of adapters, turn the advisory summarizer on, and define named profiles:
+
+```toml
+[adapters]
+enabled = ["claude", "codex"]      # only these are registered and checked by doctor
+
+[summarizer]
+enabled = true                     # opt in to the ultra-light agent-CLI summary watcher
+cli = "claude"
+model = "claude-3-5-haiku-latest"  # cheap tier (haiku / flash / mini)
+
+[profiles.cheap]
+effort = "low"
+cost_ceiling_usd = 0.5
+timeout_s = 600
+
+[profiles.thorough]
+effort = "high"
+timeout_s = 3600
+```
+
+Then verify the resolved layers and dispatch with a profile:
+
+```bash
+yanshi config                                        # resolved config + provenance (JSON)
+yanshi dispatch --profile cheap "Explain this repo"  # applies [profiles.cheap]
+```
+
+`--profile` selects a `[profiles.<name>]` bundle; an unknown name is ignored with a warning, and
+per-call flags still win over the profile and `[defaults]`.
+
+## 3. Check your environment — `yanshi doctor`
 
 ```bash
 yanshi doctor
@@ -45,7 +85,7 @@ Each registered adapter reports its executable, version, and authentication stat
 installs or authenticates them for you — fix any `failed` adapter (install the binary, log in)
 before dispatching to it.
 
-## 3. Your first dispatch — `yanshi dispatch --wait`
+## 4. Your first dispatch — `yanshi dispatch --wait`
 
 ```bash
 yanshi dispatch --cli claude --effort high --wait \
@@ -68,7 +108,7 @@ Common options (shared with `improve`):
 | `--workdir` | Child process working directory. |
 | `--timeout` | Wall-clock timeout in seconds. |
 
-## 4. Monitor with low context — `yanshi status` / `yanshi summary`
+## 5. Monitor with low context — `yanshi status` / `yanshi summary`
 
 While a run is active (or after it, since reads are pure-disk), inspect it with two tiny pulls.
 First, find the id:
@@ -88,7 +128,7 @@ yanshi summary <agent_id>    # advisory 1-3 sentence rolling summary
 > `$YANSHI_HOME/agents/<agent_id>/stream.ndjson` for audit/debugging and must **not** be pasted into
 > the parent agent's context unless a human explicitly asks for raw logs.
 
-## 5. Block or stop — `yanshi wait` / `yanshi cancel`
+## 6. Block or stop — `yanshi wait` / `yanshi cancel`
 
 ```bash
 yanshi wait   <agent_id> --timeout 300    # block until terminal state (or timeout); prints AgentStatus
@@ -99,7 +139,7 @@ yanshi cancel <agent_id>                  # graceful signal -> SIGKILL, then fin
 never re-parses the stream. When you are done with old runs, reclaim disk with
 `yanshi gc --older-than 604800` (here, runs older than 7 days).
 
-## 6. Iterate until a gate passes — `yanshi improve`
+## 7. Iterate until a gate passes — `yanshi improve`
 
 `improve` turns a single dispatch into a bounded **dispatch → gate → refine** loop:
 

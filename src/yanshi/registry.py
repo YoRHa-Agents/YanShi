@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tomllib
+from collections.abc import Callable, Sequence
 from importlib import resources
 
 from yanshi.adapters.base import Adapter
@@ -59,15 +60,59 @@ class AdapterRegistry:
         return sorted(self._adapters)
 
 
-def default_registry() -> AdapterRegistry:
-    """Build the default registry."""
+# Canonical adapter name -> zero-arg constructor for every CLI YanShi knows how
+# to build. Insertion order is the canonical claude, codex, cursor, gemini.
+_KNOWN_ADAPTERS: dict[str, Callable[[], Adapter]] = {
+    "claude": ClaudeAdapter,
+    "codex": CodexAdapter,
+    "cursor": CursorAdapter,
+    "gemini": GeminiAdapter,
+}
+
+
+def build_registry(enabled: Sequence[str] | None = None) -> AdapterRegistry:
+    """Build a registry from an optional enabled-adapter allow-list.
+
+    ``enabled is None`` registers every known adapter (the default behavior).
+    An empty sequence is treated as a misconfiguration -- an all-disabled
+    workspace can never dispatch -- so it fails fast instead of returning an
+    unusable empty registry. Any name not in :data:`_KNOWN_ADAPTERS` likewise
+    fails fast rather than being silently dropped. Duplicate names in
+    ``enabled`` are de-duplicated (first-seen order preserved) before
+    registration so a repeated entry never trips the duplicate-registration
+    guard.
+    """
+
+    if enabled is None:
+        names: list[str] = list(_KNOWN_ADAPTERS)
+    elif len(enabled) == 0:
+        raise AdapterError(
+            "no adapters enabled",
+            category=ErrorCategory.INVALID_REQUEST,
+            detail={"known": sorted(_KNOWN_ADAPTERS)},
+        )
+    else:
+        names = []
+        for name in enabled:
+            if name not in _KNOWN_ADAPTERS:
+                raise AdapterError(
+                    f"unknown adapter in enabled set: {name}",
+                    category=ErrorCategory.INVALID_REQUEST,
+                    detail={"unknown": name, "known": sorted(_KNOWN_ADAPTERS)},
+                )
+            if name not in names:
+                names.append(name)
 
     registry = AdapterRegistry()
-    registry.register(ClaudeAdapter())
-    registry.register(CodexAdapter())
-    registry.register(CursorAdapter())
-    registry.register(GeminiAdapter())
+    for name in names:
+        registry.register(_KNOWN_ADAPTERS[name]())
     return registry
+
+
+def default_registry() -> AdapterRegistry:
+    """Build the default registry with every known adapter enabled."""
+
+    return build_registry(None)
 
 
 def _load_adapter_toml(name: str) -> dict[str, object]:

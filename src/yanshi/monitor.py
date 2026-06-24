@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 import os
 import signal
 import time
 import uuid
 from collections.abc import AsyncIterator
 
-from yanshi.contracts import AgentState, RawOutcome, RunResult, RunSpec
+from yanshi.contracts import (
+    AgentState,
+    AgentStatus,
+    RawOutcome,
+    RunResult,
+    RunSpec,
+    YanShiEvent,
+)
 from yanshi.logsink import RawLogSink
 from yanshi.preflight import preflight_adapter
 from yanshi.reducer import StatusReducer, initial_status
@@ -17,6 +26,12 @@ from yanshi.registry import AdapterRegistry, default_registry
 from yanshi.runner import build_child_env
 from yanshi.store import StatusStore
 from yanshi.stream import StreamPump
+from yanshi.summarizer import RollingSummarizer, SummaryClient
+
+_LOGGER = logging.getLogger(__name__)
+
+# Bounded ceiling for the finalize wait on an in-flight summary task (G4.4/G4.5).
+_SUMMARY_FINALIZE_TIMEOUT_S = 10.0
 
 
 class MonitorKernel:
@@ -27,9 +42,15 @@ class MonitorKernel:
         *,
         registry: AdapterRegistry | None = None,
         store: StatusStore | None = None,
+        summarizer: RollingSummarizer | None = None,
+        summary_client: SummaryClient | None = None,
     ) -> None:
         self.registry = registry or default_registry()
         self.store = store or StatusStore()
+        # Advisory rolling summaries are ACTIVE only when BOTH are provided.
+        self.summarizer = summarizer
+        self.summary_client = summary_client
+        self._rolling_summary = ""
 
     async def run(
         self,
@@ -68,6 +89,10 @@ class MonitorKernel:
         stderr_lines: list[str] = []
         log_sink = RawLogSink(self.store.stream_path(effective_agent_id))
         reducer = StatusReducer()
+        events: list[YanShiEvent] = []
+        self._rolling_summary = ""
+        summary_task: asyncio.Task[None] | None = None
+        summary_cancelled = False
 
         async def stdout_iter() -> AsyncIterator[str]:
             async for line in _read_stream(proc.stdout):
@@ -90,19 +115,39 @@ class MonitorKernel:
                     if pumped.raw:
                         log_sink.append(pumped.raw)
                     if pumped.event is not None:
+                        events.append(pumped.event)
                         status = reducer.apply(status, pumped.event)
                         status.agent_id = effective_agent_id
                         status.owner_pid = os.getpid()
                         status.child_pid = proc.pid
+                        # Mirror the latest advisory summary; the background task
+                        # never writes status directly, avoiding lost-update races.
+                        status.rolling_summary = self._rolling_summary
                         self.store.write_status(status)
+                        if (
+                            self.summarizer is not None
+                            and self.summary_client is not None
+                            and self.summarizer.should_trigger(events)
+                            and (summary_task is None or summary_task.done())
+                        ):
+                            summary_task = asyncio.create_task(
+                                self._summarize(list(events), status.model_copy(deep=True))
+                            )
         except TimeoutError:
             timed_out = True
             await terminate_process(proc, final_signal=signal.SIGKILL)
         except asyncio.CancelledError:
+            summary_cancelled = True
             await terminate_process(proc, final_signal=signal.SIGKILL)
             raise
         finally:
             await _settle_task(stdin_task)
+            # Never leave the watcher running (G4.4): cancel promptly when the run
+            # is torn down, otherwise bounded-wait for the latest summary.
+            if summary_cancelled:
+                await self._cancel_summary_task(summary_task)
+            else:
+                await self._await_summary_task(summary_task)
 
         exit_code = await proc.wait()
         duration_ms = int((time.monotonic() - started) * 1000)
@@ -131,8 +176,56 @@ class MonitorKernel:
         final_status = status.model_copy(deep=True)
         final_status.state = result.state
         final_status.updated_at = time.time()
+        final_status.rolling_summary = self._rolling_summary
         self.store.write_status(final_status)
         return result
+
+    async def _summarize(
+        self,
+        events_snapshot: list[YanShiEvent],
+        status_snapshot: AgentStatus,
+    ) -> None:
+        """Run one advisory summary in the background; update the mirror, never raise.
+
+        ``RollingSummarizer`` already degrades to a deterministic fallback on
+        client failure, so this only needs a defensive guard against unexpected
+        errors, which are recorded (No Silent Failures) but never propagated --
+        the advisory watcher must never abort the monitored run (G2.7).
+        """
+
+        if self.summarizer is None:
+            return
+        try:
+            result = await self.summarizer.summarize(
+                status_snapshot, events_snapshot, client=self.summary_client
+            )
+        except Exception:  # noqa: BLE001 - advisory watcher must never abort the run (G2.7).
+            _LOGGER.warning("rolling summary task failed", exc_info=True)
+            return
+        self._rolling_summary = result.text
+
+    async def _await_summary_task(self, task: asyncio.Task[None] | None) -> None:
+        """Bounded-wait an in-flight summary task during finalize (G4.4/G4.5)."""
+
+        if task is None or task.done():
+            return
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=_SUMMARY_FINALIZE_TIMEOUT_S)
+        except TimeoutError:
+            await self._cancel_summary_task(task)
+        except asyncio.CancelledError:
+            await self._cancel_summary_task(task)
+            raise
+
+    async def _cancel_summary_task(self, task: asyncio.Task[None] | None) -> None:
+        """Cancel and reap a summary task so none outlives the run (G4.4)."""
+
+        if task is None:
+            return
+        if not task.done():
+            task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 async def terminate_process(
