@@ -1,0 +1,43 @@
+# DevolaFlow local workspace (whitelist team-collab subdirs; everything else private)
+# Per feedback_for_v12.1.0.md — narrow whitelist replaces v9.2.3 broad ignore.
+# Team-tracked: .local/memory/specs/ (A-4) + .local/research/ (W-7/W-19 artifacts).
+.local/*
+!.local/.gitignore
+!.local/memory/
+.local/memory/*
+!.local/memory/specs/
+!.local/memory/specs/**
+!.local/research/
+!.local/research/**
+!.local/human/
+.local/human/*
+!.local/human/input/
+!.local/human/input/**
+
+# MkDocs build output
+site/
+
+# Local execution artifacts
+.agent-worker-logs/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+dist/
+build/
+site/
+*.egg-info/
+__pycache__/
+*.py[cod]
+
+# YanShi runtime home (default ~/.yanshi; also ignore a workdir-local store if YANSHI_HOME is relative)
+.yanshi/
+
+# Cursor IDE artifacts: ignore ephemeral scratch (plans); keep team-tracked rules trackable.
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**

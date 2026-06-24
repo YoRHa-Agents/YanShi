@@ -1,0 +1,136 @@
+site_name: YanShi
+site_description: Vendor-neutral agent-CLI dispatch layer with deterministic low-context monitoring.
+site_url: https://yorha-agents.github.io/YanShi/
+site_author: YoRHa-Agents
+
+repo_name: YoRHa-Agents/YanShi
+repo_url: https://github.com/YoRHa-Agents/YanShi
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 YoRHa-Agents - MIT License
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/robot-happy-outline
+  features:
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 简体中文
+          build: true
+          site_name: YanShi
+          site_description: 厂商中立的 agent-CLI 调度层，提供确定性的低上下文监控。
+          nav_translations:
+            Home: 首页
+            Getting Started: 快速上手
+            Installation: 安装
+            Quickstart: 快速开始
+            Concepts: 核心概念
+            Architecture: 架构
+            Monitoring: 监控
+            Safety & Policy: 安全与策略
+            CLI: 命令行
+            Reference: 命令参考
+            Improve Loop: 改进循环
+            Adapters: 适配器
+            Library API: 库 API
+            MCP & Skill: MCP 与 Skill
+            Configuration: 配置
+            Troubleshooting: 故障排查
+            Contributing: 贡献指南
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/YoRHa-Agents/YanShi
+      name: YanShi on GitHub
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - Monitoring: concepts/monitoring.md
+      - Safety & Policy: concepts/safety.md
+  - CLI:
+      - Reference: cli/reference.md
+      - Improve Loop: cli/improve-loop.md
+  - Adapters: adapters/index.md
+  - Library API: library/python-api.md
+  - MCP & Skill: integration/mcp-and-skill.md
+  - Configuration: reference/configuration.md
+  - Troubleshooting: troubleshooting.md
+  - Contributing: contributing.md
