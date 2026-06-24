@@ -39,6 +39,17 @@ YANSHI_LIVE=1 uv run pytest -m live
 
 为离线解析器测试录制夹具(fixtures)是用维护命令 `yanshi record` 完成的(见 [CLI 参考](cli/reference.md#record))。
 
+## 安装测试由 `YANSHI_INSTALL_IT` 门控
+
+`tests/test_install_sh.py` 离线检查 `install.sh`(语法、`--help`、`--dry-run`、未知选项)。
+`tests/test_install_integration.py` 中的完整端到端套件会在隔离的仓库副本上真正运行
+`install.sh --local` 与 `--global`,并断言安装出的 `yanshi` 命令可用(版本正确、`--help`、
+`--with-mcp`、`--docs`、幂等性)。它们会构建包并创建环境,因此被标记为 `install_it` 且需显式选择加入:
+
+```bash
+YANSHI_INSTALL_IT=1 uv run pytest -m install_it
+```
+
 ## 新增一个适配器
 
 一个新 CLI 就是一个适配器加上它的能力元数据——内核不会改变:

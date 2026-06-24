@@ -46,6 +46,18 @@ YANSHI_LIVE=1 uv run pytest -m live
 Recording fixtures for offline parser tests is done with the maintenance command
 `yanshi record` (see the [CLI Reference](cli/reference.md#record)).
 
+## Install tests are gated by `YANSHI_INSTALL_IT`
+
+`tests/test_install_sh.py` checks `install.sh` offline (syntax, `--help`, `--dry-run`, unknown
+flags). The full end-to-end suite in `tests/test_install_integration.py` actually runs
+`install.sh --local` and `--global` against an isolated copy of the repo and asserts the resulting
+`yanshi` CLI works (correct version, `--help`, `--with-mcp`, `--docs`, idempotency). These build the
+package and create environments, so they are marked `install_it` and are opt-in:
+
+```bash
+YANSHI_INSTALL_IT=1 uv run pytest -m install_it
+```
+
 ## Adding an adapter
 
 A new CLI is one adapter plus its capability metadata — the kernel doesn't change:
