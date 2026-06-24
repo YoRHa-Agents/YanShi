@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yanshi"
-version = "0.1.0"
+version = "1.0.0"
 description = "Vendor-neutral agent-CLI dispatch layer with deterministic low-context monitoring."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,6 +52,7 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = [
   "live: end-to-end tests that spawn real agent CLIs (needs YANSHI_LIVE=1 and authenticated CLIs)",
+  "install_it: real install.sh integration tests (needs YANSHI_INSTALL_IT=1, uv, and a uv cache/network)",
 ]
 
 [tool.coverage.run]
