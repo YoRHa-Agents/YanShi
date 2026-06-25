@@ -1,68 +1,138 @@
-# YanShi
+<section class="ys-hero" markdown="1">
 
-**一个厂商中立的子智能体派发层,具备确定性、低上下文的监控能力。**
+# YanShi 偃师
 
-YanShi(燕十三)让上层 agent 通过**一套契约**,把工作派发给任意 headless agent CLI——
-`claude`、`codex`、`cursor-agent` 或 `gemini`——然后用**确定性、紧凑的状态对象**进行观察,
-而不是读取原始日志流。派生一个子智能体不应让你被锁死在单一厂商上,监控它也不应淹没你的上下文窗口。
+**面向上层 agent 的厂商中立子智能体派发层：要控制线索，不要日志噪声。**
 
-## 是什么,以及为什么
+YanShi 让上层 agent 用一套精确契约派生 headless agent CLI，并为每次运行返回确定性、
+低上下文的观察结果。原始流留在磁盘上供审计；上层只拉取真正需要的控制线索：
+`AgentStatus`、建议性摘要，以及显式错误。
 
-如今编排子智能体迫使你做出两个糟糕的选择:绑定到某一厂商的 SDK,或把原始输出的洪流灌进
-自己的上下文。YanShi 把两者都去掉了:
+[从快速开始进入](getting-started/quickstart.md){ .md-button .md-button--primary }
+[阅读架构](concepts/architecture.md){ .md-button }
 
-- **一套契约,多种 CLI。** 用一个 [`RunSpec`](library/python-api.md) 描述一次任务;
-  每个 CLI 的适配器会把它翻译成厂商参数,并把厂商的事件流归一化回单一形态。新增一个 CLI
-  只意味着编写一个适配器,而不必重写你的编排器。
-- **每次轮询只花几十个 token。** 上层拉取一个小的 `AgentStatus` 加上 1~3 句的滚动摘要。
-  原始 NDJSON 留在磁盘上以供审计;除非有人明确要求,它绝不会进入上层的上下文。
+</section>
 
-## 可见性平面 vs. 上下文平面
+<section class="ys-section ys-section--thread" markdown="1">
 
-核心思想是严格区分两个平面:
+## 控制框架
 
-| 平面 | 承载内容 | 谁来读取 |
+YanShi 面向已经知道上下文成本有多高的编排器。上层 agent 可以通过一个
+[`RunSpec`](library/python-api.md) 派发 `claude`、`codex`、`cursor-agent` 或 `gemini`；
+每个适配器把同一份意图翻译成厂商参数，再把事件归一化回同一种形态。
+
+它保持主权感，但不绑定任何厂商：新增 CLI 意味着编写一个适配器，而不是重写负责观察它的宿主进程。
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## 第一轮运行，低上下文观察
+
+<div class="ys-flow" markdown="1">
+
+1. **安装并检查。** 使用内置安装脚本或 `uv`，再运行 `yanshi doctor` 查看哪些适配器已经存在并完成认证。
+2. **通过一套契约派发。** `yanshi dispatch --cli claude --effort high "Summarize this repo"`
+   运行共享监控内核，并把运行记录写入 `$YANSHI_HOME`。
+3. **只拉取必要信息。** `yanshi status <agent_id>` 返回确定性的状态、计数器、用量、花费、
+   警告和错误；`yanshi summary <agent_id>` 返回简短的建议性摘要。
+4. **用闸门迭代。** `yanshi improve --check "uv run pytest -q"` 运行有界的
+   **派发 -> 闸门 -> 精修** 循环，其中检查命令拥有最终裁决权。
+
+</div>
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## 两个平面，一条边界
+
+| 平面 | 保存什么 | 谁应该读取 |
 |---|---|---|
-| **可见性平面** | 每一条原始事件,持久化到磁盘上的 `stream.ndjson` | 仅用于审计 / 调试 |
-| **上下文平面** | 紧凑的 `AgentStatus` + 建议性摘要 | 上层 agent,按需读取 |
+| **可见性平面** | 每一条原始事件，先脱敏再持久化到 `stream.ndjson` | 审计或调试运行的人 |
+| **上下文平面** | 紧凑的 `AgentStatus` 加 1-3 句建议性摘要 | 上层 agent 按需读取 |
 
-原始流落在可见性平面;上层 agent 完全生活在上下文平面里。这正是让舰队编排负担得起的原因:
-你可以观察许多异构的 CLI,而每次状态轮询只花费几十个 token。
-
-## 核心特性
-
-- **一套契约,多种 CLI**——用单个 `RunSpec` 派发;新增一个 CLI 只需编写一个适配器。
-- **低上下文监控**——拉取紧凑的 `AgentStatus` 和一段简短的滚动摘要;原始流留在磁盘上。
-- **生而确定**——有限状态机、计数器、错误分类、token 与花费全部不借助 LLM 计算。
-  只有滚动摘要是建议性的。
-- **默认安全**——默认 `read-only` 权限模式,`yolo` 仅在显式指定时启用;仅以 argv 方式
-  spawn(绝不 `shell=True`);密钥脱敏;每次运行与全局的花费上限。
-- **舰队**——用 `dispatch_many` 扇出,用 `fleet_status` 聚合,用 `consolidate` 合并,
-  全程具备失败隔离。
-- **改进循环**——一个由确定性检查命令驱动的、有界的 *派发 → 闸门 → 精修* 循环。
-- **Skill + MCP**——一份 `SKILL.md` 契约,以及面向 agent 宿主的可选 MCP 服务器垫片。
-
-## 架构速览
+监控内核并发读取 stdout 与 stderr，把归一化事件折叠进纯函数状态规约器，并用原子写把快照镜像到磁盘。
+上层默认不 tail 子进程流；它通过 `status`、`summary`、`wait`、`list` 和舰队辅助函数读取稳定的上下文平面。
 
 ```mermaid
 flowchart LR
     parent["上层 agent"] -->|"dispatch(RunSpec)"| kernel["YanShi 监控内核"]
-    kernel -->|"spawn argv"| cli["agent CLI: claude / codex / cursor / gemini"]
+    kernel -->|"仅 argv spawn"| cli["agent CLI 适配器"]
     cli -->|"NDJSON 事件"| kernel
-    kernel -->|"原子写"| disk[("$YANSHI_HOME/agents/&lt;id&gt;")]
-    parent -.->|"status() / summary() 拉取"| disk
+    kernel -->|"stream.ndjson"| visibility["磁盘上的可见性平面"]
+    kernel -->|"run.json / AgentStatus"| context["上下文平面"]
+    parent -.->|"拉取 status + summary"| context
 ```
 
-上层派发一个 `RunSpec`;内核用 argv 列表 spawn 出 CLI,解析它的事件流,并把确定性状态镜像到
-磁盘。随后上层*拉取*状态与摘要——它绝不会读取子进程的原始流。
+</section>
+
+<section class="ys-section ys-section--cards" markdown="1">
+
+## 安全与适配器
+
+<div class="ys-card-grid" markdown="1">
+
+<div class="ys-card" markdown="1">
+
+### 默认安全
+
+`read-only` 是默认权限模式。`yolo` 绝不会被隐式启用；策略校验会在子进程启动前拒绝不安全组合。
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### 忠实执行
+
+YanShi 始终用 argv 列表和 `shell=False` spawn CLI。prompt 与改进循环的闸门命令都不会被插入 shell 命令行。
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### 显式降级
+
+适配器能力缺口、缺失价格、闸门失败和运行时错误都会进入警告或错误。YanShi 不会假装不支持的控制已经生效。
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### 可移植机制
+
+适配器覆盖 `claude`、`codex`、`cursor` 与 `gemini`，同时为宿主保留同一套 `RunSpec`、`RunResult`
+和 `AgentStatus` 契约。
+
+</div>
+
+</div>
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## 先配置，再扩展
+
+YanShi 可以直接使用内置默认值；仓库也可以通过 `yanshi init` 添加 `.yanshi.toml`，声明启用的适配器、
+摘要器设置、派发默认值、profiles 与硬限制。更大的宿主可以用 `dispatch_many` 扇出，用
+`fleet_status` 聚合，并用 `consolidate` 合并结果，同时让原始 NDJSON 始终留在上层上下文之外。
+
+</section>
+
+<section class="ys-section ys-next" markdown="1">
 
 ## 接下来去哪
 
 - [安装](getting-started/installation.md)——用 `install.sh`、`uv` 或 `pip` 安装 `yanshi` CLI。
-- [快速开始](getting-started/quickstart.md)——派发你的第一个子智能体并监控它。
-- [架构](concepts/architecture.md)——单内核 / 双入口 / 纯磁盘读取模型。
-- [命令参考](cli/reference.md)——每一个 `yanshi` 动词及其选项。
+- [快速开始](getting-started/quickstart.md)——派发第一个子智能体，并在不读取原始流的情况下观察它。
+- [架构](concepts/architecture.md)——监控内核、两个平面与纯磁盘读取器。
+- [安全与策略](concepts/safety.md)——权限模式、仅 argv spawn、脱敏与花费上限。
+- [配置](reference/configuration.md)——`.yanshi.toml`、profiles、limits 与 `$YANSHI_HOME`。
+- [改进循环](cli/improve-loop.md)——有界的派发、闸门与精修循环。
+
+</section>
 
 !!! note "设计的源头真相"
-    YanShi 实现了 `.local/memory/specs/yanshi/spec.md` 中的规范性设计,且不改变其中的决策。
+    YanShi 实现了 `.local/memory/specs/yanshi/spec.md` 中的规范性设计，且不改变其中的决策。
     本文档描述的是随版本交付的实现。

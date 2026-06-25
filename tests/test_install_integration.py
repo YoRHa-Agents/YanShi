@@ -35,7 +35,7 @@ _COPY_ITEMS = (
 )
 
 # Expected released version (kept in sync with pyproject / __init__).
-EXPECTED_VERSION = "1.1.0"
+EXPECTED_VERSION = "1.2.0"
 
 pytestmark = [
     pytest.mark.install_it,

@@ -1,76 +1,150 @@
-# YanShi
+<section class="ys-hero" markdown="1">
 
-**A vendor-neutral sub-agent dispatch layer with deterministic, low-context monitoring.**
+# YanShi 偃师
 
-YanShi (燕十三) lets a parent agent dispatch work to any headless agent CLI —
-`claude`, `codex`, `cursor-agent`, or `gemini` — through **one contract**, then watch it with
-**deterministic, compact status objects** instead of raw log streams. Spawning a sub-agent should
-not lock you into a single vendor, and monitoring it should not flood your context window.
+**Vendor-neutral sub-agent dispatch for parent agents that need control, not log noise.**
 
-## What & why
+YanShi gives a parent agent one precise contract for spawning headless agent CLIs, then returns a
+deterministic, low-context view of each run. The raw stream remains on disk for audit; the parent
+pulls only the control threads it needs: `AgentStatus`, an advisory summary, and explicit errors.
 
-Orchestrating sub-agents today forces two unhappy choices: bind to one vendor's SDK, or tail a
-firehose of raw output into your own context. YanShi removes both:
+[Start with the quickstart](getting-started/quickstart.md){ .md-button .md-button--primary }
+[Read the architecture](concepts/architecture.md){ .md-button }
 
-- **One contract, many CLIs.** Describe a task once with a [`RunSpec`](library/python-api.md);
-  a per-CLI adapter translates it into vendor flags and normalizes the vendor's event stream back
-  into a single shape. Adding a CLI means writing one adapter, not rewriting your orchestrator.
-- **Tens of tokens per poll.** The parent pulls a small `AgentStatus` plus a 1–3 sentence rolling
-  summary. The raw NDJSON stays on disk for audit; it never enters the parent's context unless a
-  human explicitly asks for it.
+</section>
 
-## Visibility plane vs. context plane
+<section class="ys-section ys-section--thread" markdown="1">
 
-The central idea is a strict separation of two planes:
+## The control frame
 
-| Plane | Holds | Who reads it |
+YanShi is for orchestrators that already know how expensive context is. A parent agent can dispatch
+`claude`, `codex`, `cursor-agent`, or `gemini` through one [`RunSpec`](library/python-api.md), while
+each adapter translates the same intent into vendor-specific flags and normalizes events back into
+one shape.
+
+The result is sovereign without being vendor-bound: add a CLI by writing an adapter, not by rewriting
+the host process that observes it.
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## First run, low context
+
+<div class="ys-flow" markdown="1">
+
+1. **Install and inspect.** Use the bundled installer or `uv`, then run `yanshi doctor` to see which
+   adapters are present and authenticated.
+2. **Dispatch through one contract.** `yanshi dispatch --cli claude --effort high "Summarize this repo"`
+   runs the shared monitor kernel and records the run under `$YANSHI_HOME`.
+3. **Pull only what matters.** `yanshi status <agent_id>` returns deterministic state, counters,
+   usage, cost, warnings, and errors. `yanshi summary <agent_id>` returns a short advisory summary.
+4. **Iterate with a gate.** `yanshi improve --check "uv run pytest -q"` runs a bounded
+   **dispatch -> gate -> refine** loop where the check command is authoritative.
+
+</div>
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## Two planes, one boundary
+
+| Plane | What it keeps | Who should read it |
 |---|---|---|
-| **Visibility plane** | Every raw event, persisted to `stream.ndjson` on disk | Audit / debugging only |
-| **Context plane** | A compact `AgentStatus` + advisory summary | The parent agent, on demand |
+| **Visibility plane** | Every raw event, secret-redacted and persisted to `stream.ndjson` | Humans auditing or debugging a run |
+| **Context plane** | A compact `AgentStatus` plus a 1-3 sentence advisory summary | The parent agent, on demand |
 
-Raw streams land in the visibility plane; the parent agent lives entirely in the context plane.
-This is what keeps fleet orchestration affordable: you can watch many heterogeneous CLIs while
-spending only a few tokens per status poll.
-
-## Key features
-
-- **One contract, many CLIs** — dispatch with a single `RunSpec`; add a CLI by writing one adapter.
-- **Low-context monitoring** — pull a compact `AgentStatus` and a short rolling summary; raw streams
-  stay on disk.
-- **Deterministic by design** — the finite-state machine, counters, error class, tokens, and cost
-  are all computed without an LLM. Only the rolling summary is advisory.
-- **Safe by default** — `read-only` permission mode by default, `yolo` only when explicit;
-  argv-only spawning (never `shell=True`); secret redaction; per-run and global cost ceilings.
-- **Fleets** — fan out with `dispatch_many`, aggregate with `fleet_status`, and merge with
-  `consolidate`, all with failure isolation.
-- **Improve loop** — a bounded *dispatch → gate → refine* cycle driven by a deterministic check
-  command.
-- **Skill + MCP** — a `SKILL.md` contract and an optional MCP server shim for agent hosts.
-
-## Architecture at a glance
+The monitor kernel reads stdout and stderr concurrently, folds normalized events through a pure
+status reducer, and mirrors the snapshot to disk with atomic writes. The parent never tails the child
+stream by default; it reads the stable context plane through `status`, `summary`, `wait`, `list`, and
+fleet helpers.
 
 ```mermaid
 flowchart LR
     parent["Parent agent"] -->|"dispatch(RunSpec)"| kernel["YanShi monitor kernel"]
-    kernel -->|"spawn argv"| cli["agent CLI: claude / codex / cursor / gemini"]
+    kernel -->|"argv-only spawn"| cli["agent CLI adapter"]
     cli -->|"NDJSON events"| kernel
-    kernel -->|"atomic write"| disk[("$YANSHI_HOME/agents/&lt;id&gt;")]
-    parent -.->|"status() / summary() pull"| disk
+    kernel -->|"stream.ndjson"| visibility["Visibility plane on disk"]
+    kernel -->|"run.json / AgentStatus"| context["Context plane"]
+    parent -.->|"pull status + summary"| context
 ```
 
-The parent dispatches a `RunSpec`; the kernel spawns the CLI with an argv list, parses its event
-stream, and mirrors a deterministic status to disk. The parent then *pulls* status and summary —
-it never reads the child's raw stream.
+</section>
+
+<section class="ys-section ys-section--cards" markdown="1">
+
+## Safety and adapters
+
+<div class="ys-card-grid" markdown="1">
+
+<div class="ys-card" markdown="1">
+
+### Safe defaults
+
+`read-only` is the default permission mode. `yolo` is never implied, and policy validation rejects
+unsafe combinations before a child process starts.
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### Faithful execution
+
+YanShi spawns every CLI from an argv list with `shell=False`. Prompts and improve-loop gates are
+never interpolated into a shell command line.
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### Explicit degradation
+
+Adapter capability gaps, missing pricing, gate failures, and runtime errors are surfaced as warnings
+or errors. Unsupported controls are never silently faked.
+
+</div>
+
+<div class="ys-card" markdown="1">
+
+### Portable mechanisms
+
+Adapters cover `claude`, `codex`, `cursor`, and `gemini` while preserving the same `RunSpec`,
+`RunResult`, and `AgentStatus` contracts for the host.
+
+</div>
+
+</div>
+
+</section>
+
+<section class="ys-section" markdown="1">
+
+## Configure, then scale
+
+YanShi works with built-in defaults, but a repo can add `.yanshi.toml` through `yanshi init` to define
+enabled adapters, summarizer settings, dispatch defaults, profiles, and hard limits. Larger hosts can
+fan out with `dispatch_many`, aggregate with `fleet_status`, and consolidate results while raw
+NDJSON stays outside the parent's context window.
+
+</section>
+
+<section class="ys-section ys-next" markdown="1">
 
 ## Where to next
 
-- [Installation](getting-started/installation.md) — install the `yanshi` CLI with `install.sh`,
-  `uv`, or `pip`.
-- [Quickstart](getting-started/quickstart.md) — dispatch your first sub-agent and monitor it.
-- [Architecture](concepts/architecture.md) — the one-kernel / two-entrypoints / pure-disk-read
-  model.
-- [CLI Reference](cli/reference.md) — every `yanshi` verb and its options.
+- [Installation](getting-started/installation.md) — install the `yanshi` CLI with `install.sh`, `uv`,
+  or `pip`.
+- [Quickstart](getting-started/quickstart.md) — dispatch the first sub-agent and monitor it without
+  reading raw streams.
+- [Architecture](concepts/architecture.md) — the monitor kernel, two planes, and pure-disk readers.
+- [Safety & Policy](concepts/safety.md) — permission modes, argv-only spawning, redaction, and cost
+  ceilings.
+- [Configuration](reference/configuration.md) — `.yanshi.toml`, profiles, limits, and `$YANSHI_HOME`.
+- [Improve Loop](cli/improve-loop.md) — the bounded dispatch, gate, and refine cycle.
+
+</section>
 
 !!! note "Design source of truth"
-    YanShi implements the normative design in `.local/memory/specs/yanshi/spec.md` without
-    changing its decisions. This documentation describes the implementation as it ships.
+    YanShi implements the normative design in `.local/memory/specs/yanshi/spec.md` without changing
+    its decisions. This documentation describes the implementation as it ships.

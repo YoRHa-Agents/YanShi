@@ -171,6 +171,10 @@ def test_render_default_config_round_trips(tmp_path: Path) -> None:
     template = render_default_config_toml()
     assert "[adapters]" in template
     assert "[profiles.cheap]" in template
+    assert "parent agent remains the artisan" in template
+    assert "enabled mechanisms" in template
+    assert "summary control threads" in template
+    assert "clamped and surfaced as" in template
 
     path = tmp_path / DEFAULT_CONFIG_FILENAME
     _write(path, template)

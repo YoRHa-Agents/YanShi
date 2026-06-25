@@ -5,6 +5,29 @@ All notable changes to YanShi are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-25
+
+Formal YanShi 偃师 brand and public experience release.
+
+### Added
+
+- **Brand context** — new `PRODUCT.md` and `DESIGN.md` capture the YanShi
+  public register, mythic-dark visual system, accessibility constraints, and
+  durable design principles for future README/docs/UI work.
+- **Docs styling** — new MkDocs stylesheet gives the public site a dark,
+  high-contrast YanShi visual layer with visible focus states and
+  `prefers-reduced-motion` handling.
+
+### Changed
+
+- **README and docs homepage** now frame YanShi around the 偃师 artisan metaphor
+  while preserving the core technical contract: one `RunSpec`, deterministic
+  status, raw NDJSON on disk, and advisory summaries.
+- **CLI help and init template copy** now explain enabled adapter CLIs as
+  configurable mechanisms and status/summary as control threads, without
+  changing command behavior or JSON output contracts.
+- **Package description** updated to match the public positioning.
+
 ## [1.1.0] - 2026-06-25
 
 Repo-level initialization & configuration. Addresses
@@ -60,5 +83,6 @@ configurable invocation defaults/levels). See spec §14 and governance G11.
   loop, MCP surface, and the bilingual userguide system. Released as commit
   `c24c828` ("Release v1.0.0: version bump + full install integration tests").
 
-[1.1.0]: https://github.com/YoRHa-Agents/YanShi/compare/c24c828...HEAD
+[1.2.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/YoRHa-Agents/YanShi/compare/c24c828...v1.1.0
 [1.0.0]: https://github.com/YoRHa-Agents/YanShi/commit/c24c828
