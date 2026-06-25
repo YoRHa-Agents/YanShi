@@ -32,7 +32,7 @@ class DispatchHandle:
 _BACKGROUND_TASKS: dict[str, asyncio.Task[RunResult]] = {}
 
 
-def _config_kernel(store: StatusStore | None, *, start: Path | None = None) -> MonitorKernel:
+def config_kernel(store: StatusStore | None, *, start: Path | None = None) -> MonitorKernel:
     """Build a config-driven monitor kernel for the default (registry-None) path.
 
     Reads the layered repo config to pick the enabled-adapter set and decide
@@ -89,7 +89,7 @@ async def dispatch_wait(
     """Entry B: run the shared monitor kernel inline until terminal result."""
 
     kernel = (
-        _config_kernel(store)
+        config_kernel(store)
         if registry is None
         else MonitorKernel(registry=registry, store=store)
     )
@@ -106,7 +106,7 @@ def dispatch_background(
     """Entry A: spawn a background monitor task in the current event loop."""
 
     kernel = (
-        _config_kernel(store)
+        config_kernel(store)
         if registry is None
         else MonitorKernel(registry=registry, store=store)
     )

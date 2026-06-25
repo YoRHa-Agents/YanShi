@@ -21,6 +21,7 @@ from yanshi.config import (
 )
 from yanshi.contracts import AllowMode, ImproveSpec, PromptMode, RunSpec, WarningRecord
 from yanshi.dispatch import cancel as cancel_run
+from yanshi.dispatch import config_kernel
 from yanshi.dispatch import dispatch_wait as dispatch_wait_run
 from yanshi.dispatch import doctor as doctor_run
 from yanshi.dispatch import list_agents as list_agents_run
@@ -220,7 +221,10 @@ def improve(
         max_iterations=max_iterations,
         use_critic=critic,
     )
-    result = asyncio.run(improve_loop(plan))
+    # Route through the same config-driven kernel as dispatch so improve honors
+    # [adapters].enabled (G11.3) and the configured summarizer, instead of
+    # silently falling back to default_registry() (all adapters).
+    result = asyncio.run(improve_loop(plan, kernel=config_kernel(StatusStore())))
     typer.echo(result.model_dump_json())
     if not result.succeeded:
         raise typer.Exit(code=1)

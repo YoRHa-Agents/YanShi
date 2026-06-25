@@ -266,3 +266,25 @@ def test_cli_dispatch_clamps_allow_to_limit(
     assert result.exit_code == 0
     assert seen["spec"].allow == AllowMode.READ_ONLY
     assert "capability_clamped" in result.stderr
+
+
+def test_cli_improve_honors_enabled_adapters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """improve must enforce [adapters].enabled (G11.3) like dispatch, instead of
+    silently falling back to default_registry() (all adapters)."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("YANSHI_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".yanshi.toml").write_text(
+        '[adapters]\nenabled = ["claude"]\n', encoding="utf-8"
+    )
+
+    # codex is disabled by config; the config-driven kernel must reject it at
+    # registry lookup (before any preflight/spawn), surfaced as a fatal_error.
+    result = CliRunner().invoke(app, ["improve", "--cli", "codex", "hello"])
+
+    assert result.exit_code == 1
+    assert "codex" in result.stdout
+    assert "fatal_error" in result.stdout
