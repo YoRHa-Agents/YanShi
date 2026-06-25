@@ -1,12 +1,13 @@
-# YanShi 核心管控规范 (Governance Spec) v1.2 — 定稿
+# YanShi 核心管控规范 (Governance Spec) v1.3 — 定稿
 
 > 本文是 YanShi 对 sub-agent 的**规范性管控契约**(normative)。关键词遵循 RFC2119:
 > **MUST / MUST NOT / SHOULD / MAY**。配套 `spec.md`、`implementation-path.md`。
-> 最后更新: 2026-06-18 00:20 (UTC+8)
+> 最后更新: 2026-06-25 (UTC+8)
 > v1.1 review 补足: G2.9/G2.10(舰队汇总/单读者)、G3.6/G3.7(preflight/凭证)、G8(命令构造与进程安全)、G9(标识与会话)、G10(运行时存活)。
 > v1.2 收敛: G10 重写为 owner_pid 存活模型(去 detached/heartbeat);新增 G1.4(effort/用户 model 冲突)、G5.6(无原生定价时 cost 护栏降级)。
+> v1.3 新增: G11(配置与初始化管控,配套 spec §14)——发现/优先级确定性、`[limits]` 天花板夹取必 warn、`[adapters].enabled` fail-fast、摘要器=超轻量 agent-CLI 调用 + 强制降级 + watcher 预算、配置层不擅改用户 model、配置错误 fail-loud、配置驱动动作可审计。
 
-YanShi 是 sub-agent 的**调度入口**。所有管控维度通过 skill 层暴露给调度方,YanShi 负责**如实执行 + 强约束 + 不可越权**。共十大管控域(G1–G10)。
+YanShi 是 sub-agent 的**调度入口**。所有管控维度通过 skill 层暴露给调度方,YanShi 负责**如实执行 + 强约束 + 不可越权**。共十一个管控域(G1–G11)。
 
 ---
 
@@ -122,3 +123,15 @@ YanShi 是 sub-agent 的**调度入口**。所有管控维度通过 skill 层暴
 - G10.1 `run.json` **MUST** 记录子进程 `pid` 与监控宿主 `owner_pid`;读取者 **MUST** 据 `owner_pid` 存活校验,读到陈旧 `running` 而 owner 已死时 **MUST** 纠正为 `stalled`,**MUST NOT** 误报为 `running`(无须独立 heartbeat 线程)。
 - G10.2 `cancel` **MUST** 终止子进程(入口 A 经进程内 API;入口 B 经前台中断或据 `run.json` 子 `pid` 发信号),并在 drain 后 finalize 为 `cancelled`,**MUST NOT** 留下孤儿。
 - G10.3 监控宿主崩溃/宿主重启后,子进程可能成孤儿;读取者据 G10.1 置 `stalled`,孤儿子进程 **MUST** 按记录的 `pid` 回收。
+
+## G11. 配置与初始化管控(Configuration)(v1.3 新增,配套 spec §14)
+仓库级配置让"不同工作区有不同可用配置"成立;管控底线:**分层确定、收紧必显、错误不静默**。
+
+- G11.1 **发现与优先级确定性**:本地配置 **MUST** 由 `cwd` 向上 walk 至文件系统根、取**首个** `.yanshi.toml`;全局配置 **MUST** 为 `$YANSHI_HOME/config.toml`(默认 `~/.yanshi/config.toml`)。分层优先级 **MUST** 恒为 `内置默认 < 全局 < 本地 < 每次调用覆盖`,逐 section deep-merge,本地同键覆盖全局。解析 **MUST** 确定可复现(同输入→同结果,呼应 G7.1)。
+- G11.2 **天花板夹取必 warn**:merge 后 `[limits]` **MUST** 对生效请求执行夹取——`max_allow` 夹 `allow`(权限偏序 `read-only < yolo`;`yolo` 请求在 `read-only` 上限工作区 **MUST** 被夹回 `read-only`)、`max_cost_usd` 夹 `cost_ceiling_usd`、`max_timeout_s` 夹 `timeout_s`。**每次实际发生夹取 MUST 产生结构化 `WarningRecord`**(No Silent Failures,呼应 G1.3/G3.1),**MUST NOT** 静默收紧请求。
+- G11.3 **enabled-set fail-fast**:`[adapters].enabled` **MUST** 为 `{claude, codex, cursor, gemini}` 的子集(默认全部);**仅** enabled 的适配器 **MAY** 被注册、被 `doctor`/preflight(G3.6)校验。请求一个被禁用或未知的适配器 **MUST** fail-fast 报错并列出当前 enabled 集合,**MUST NOT** 静默回退到其它 CLI。
+- G11.4 **摘要器=轻量 agent-call + 强制降级**:摘要器 **MUST** 实现为一次超轻量 one-shot agent-CLI 调用(`build_command` + 阻塞执行 + 解析 reply),**MUST NOT** 作为被递归监控的 dispatch 运行(不落 `agents/<id>/`、不递归自摘要)。`[summarizer].enabled` 默认 `false`(向后兼容)。摘要 **MUST** 受 G2.6 节流(`debounce_s`/`min_new_events`,输出 ≤150 token)与 G5.4 watcher 预算(`watcher_token_ceiling` + `timeout_s`,选 haiku/flash/mini 便宜档)双重约束。**任何**错误或预算/超时耗尽 **MUST** 降级为确定性"拼接显著事件"兜底(G2.7),**MUST NOT** 阻塞、中断或拖慢被监控的主 run。
+- G11.5 **不擅改用户 model**:配置层(`[defaults]`/`[profiles]`)**只填充缺省**;当调用方已显式给定 `model` 时,配置 **MUST NOT** 覆盖或静默改写之(重申 G1.4)。TOML `effort` 键 **MUST** 映射到 `reasoning_effort`,该 CLI 无法表达时按 G1.3 记 warning。
+- G11.6 **配置错误 fail-loud**:格式错误的 TOML(语法错误/类型不符)**MUST** 抛出明确错误,**MUST NOT** 静默忽略或 try/except 吞掉(No Silent Failures)。未知 `--profile` 名 **MUST** 记 warning 并忽略(继续按无 profile 解析),**MUST NOT** crash。
+- G11.7 **配置驱动动作可审计**:所有由配置触发的动作(`[limits]` 夹取、适配器禁用拒绝、profile 忽略、摘要器降级)**MUST** 产生可审计记录(`WarningRecord` + 落盘,可选 OTEL `gen_ai.*`,呼应 G7.2);`yanshi config` **MUST** 能回放有效值及其 provenance(来源层:built-in/global/local/override)。
+- G11.8 **init 不静默覆盖**:`yanshi init` 在目标配置文件已存在且未给 `--force` 时 **MUST** 拒绝覆盖并报明确错误,**MUST NOT** 静默改写用户既有配置(No Silent Failures)。

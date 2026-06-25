@@ -13,7 +13,7 @@
 
 </div>
 
-> Last-Modified: 2026-06-24
+> Last-Modified: 2026-06-25
 
 **YanShi(燕十三)** 让上层 agent 通过**统一契约**把任务派发给任意 headless agent CLI——`claude`、
 `codex`、`cursor-agent`、`gemini`——并用**确定性、低上下文**的状态对象进行监控,而不是把原始日志流读进
@@ -94,6 +94,22 @@ yanshi improve --cli claude "修复失败的单元测试" \
 
 > **低上下文规则:** 只轮询 `status` 与 `summary`。`$YANSHI_HOME/agents/<id>/stream.ndjson` 下的
 > 原始流仅供审计/调试,绝不应粘贴进上层上下文。
+
+## 初始化与配置
+
+YanShi 会读取一个可选的仓库级 `.yanshi.toml`(从当前目录沿父目录向上 walk 发现,语义同 `.git`),
+它分层于全局 `$YANSHI_HOME/config.toml` 之上,并被每次调用的参数覆盖。运行 `yanshi init` 即可
+scaffold 一个带注释的起始文件(`--global` 写共享配置;目标已存在且未给 `--force` 时拒绝覆盖):
+
+```bash
+yanshi init                  # scaffold ./.yanshi.toml
+yanshi config                # 以 JSON 打印解析后的配置 + provenance
+```
+
+同一个文件统一控制启用哪些**适配器**、派发**默认值**、命名 **profiles**(用 `--profile` 选用)、
+硬 **limits**(夹取并记 warning),以及**摘要器**(一个可选启用、默认关闭的超轻量 agent-CLI
+观察者)。因此同一台机器上的不同仓库可暴露不同的能力;`yanshi config` 会展示每个解析值及其
+来自哪一层。
 
 ## CLI 速查
 

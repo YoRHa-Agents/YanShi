@@ -1,6 +1,6 @@
 # YanShi Sub-Agent Dispatch Skill
 
-> Last-Modified: 2026-06-18
+> Last-Modified: 2026-06-25
 
 YanShi dispatches work to external agent CLIs (`claude`, `codex`, `cursor`, `gemini`) and lets
 the parent agent monitor them through compact status objects. Parent agents must poll
@@ -77,11 +77,47 @@ result = await improve_loop(plan)  # -> ImproveResult(succeeded, stop_reason, it
 `fatal_error`, or `no_evaluator`. Gate/critic/dispatch failures are surfaced in
 `GateOutcome.error` and `ImproveResult.warnings` (never silently swallowed).
 
+## Repo-level configuration
+
+Callers can scaffold a workspace config so different repos expose different defaults
+and capabilities. `yanshi init` writes a starter config; `--local` (default) creates
+`.yanshi.toml` in the current directory, `--global` creates `$YANSHI_HOME/config.toml`.
+It refuses to overwrite an existing file without `--force`.
+
+```bash
+yanshi init            # scaffold ./.yanshi.toml
+yanshi init --global   # scaffold $YANSHI_HOME/config.toml
+yanshi config          # print the resolved config + per-value provenance
+```
+
+`dispatch` and `improve` resolve a final spec from layered config before running,
+with deterministic precedence (low→high): built-in defaults < global config <
+local `.yanshi.toml` (discovered by walking up from `cwd`) < per-call flags. The
+config honors:
+
+- `[adapters].enabled` — subset of `{claude, codex, cursor, gemini}` that may be
+  registered and `doctor`-checked; requesting a disabled/unknown CLI fails fast.
+- `[defaults]` and `[profiles.<name>]` — invocation defaults and named presets;
+  select a preset with `--profile <name>` on `dispatch`/`improve`. Explicit flags
+  always win over config; config never overrides a model you passed yourself.
+- `[limits]` — hard ceilings (`max_allow`, `max_cost_usd`, `max_timeout_s`) clamped
+  last; every actual clamp emits a structured warning (no silent tightening).
+- `[summarizer]` — opt-in (`enabled = false` by default). When on, the rolling
+  summary is produced by one ultra-light agent-CLI call; any error/timeout/budget
+  exhaustion degrades to the deterministic fallback without slowing the main run.
+
+`yanshi config` replays the effective values and shows which layer each came from
+(built-in / global / local / override). Over MCP, use `get_config()` to inspect the
+resolved config and pass an optional `profile` to `dispatch`.
+
 ## Examples
 
 ```bash
+yanshi init --local
+yanshi config
 yanshi doctor
 yanshi dispatch --cli claude --model sonnet --effort high "Inspect failing tests"
+yanshi dispatch --profile cheap "Summarize the diff"
 yanshi improve --cli claude "fix failing tests" --check "pytest -q" --max-iterations 3
 yanshi list
 yanshi status ys-...

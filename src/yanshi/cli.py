@@ -7,12 +7,21 @@ import json
 import shlex
 import shutil
 from pathlib import Path
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 import typer
 
-from yanshi.contracts import AllowMode, ImproveSpec, PromptMode, RunSpec
+from yanshi.config import (
+    DEFAULT_CONFIG_FILENAME,
+    enabled_adapter_names,
+    global_config_path,
+    load_config,
+    render_default_config_toml,
+    resolve_dispatch,
+)
+from yanshi.contracts import AllowMode, ImproveSpec, PromptMode, RunSpec, WarningRecord
 from yanshi.dispatch import cancel as cancel_run
+from yanshi.dispatch import config_kernel
 from yanshi.dispatch import dispatch_wait as dispatch_wait_run
 from yanshi.dispatch import doctor as doctor_run
 from yanshi.dispatch import list_agents as list_agents_run
@@ -50,8 +59,54 @@ def doctor() -> None:
 
 
 @app.command()
+def init(
+    global_: Annotated[
+        bool,
+        typer.Option(
+            "--global/--local",
+            help="Write the global config instead of ./.yanshi.toml.",
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Overwrite an existing config file."),
+    ] = False,
+) -> None:
+    """Write a commented starter config (local ./.yanshi.toml by default)."""
+
+    target = global_config_path() if global_ else Path.cwd() / DEFAULT_CONFIG_FILENAME
+    if target.exists() and not force:
+        typer.echo(
+            f"refusing to overwrite existing config: {target} (use --force)",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_default_config_toml(), encoding="utf-8")
+    typer.echo(str(target.resolve()))
+
+
+@app.command()
+def config() -> None:
+    """Print the effective layered configuration and its provenance as JSON."""
+
+    loaded = load_config()
+    typer.echo(
+        json.dumps(
+            {
+                "config": loaded.config.model_dump(mode="json"),
+                "sources": [str(path) for path in loaded.sources],
+                "provenance": loaded.provenance,
+                "enabled_adapters": enabled_adapter_names(loaded.config),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
+@app.command()
 def dispatch(
-    cli: Annotated[str, typer.Option(help="Adapter name, e.g. claude.")] = "claude",
+    cli: Annotated[str | None, typer.Option(help="Adapter name, e.g. claude.")] = None,
     prompt: Annotated[str, typer.Argument(help="Prompt to send to the agent CLI.")] = "",
     model: Annotated[str | None, typer.Option(help="Model id to pass through.")] = None,
     effort: Annotated[
@@ -59,9 +114,13 @@ def dispatch(
         typer.Option("--effort", help="Reasoning effort: low, medium, high, xhigh."),
     ] = None,
     allow: Annotated[
-        AllowMode,
+        AllowMode | None,
         typer.Option(help="Permission mode. Defaults to read-only."),
-    ] = AllowMode.READ_ONLY,
+    ] = None,
+    profile: Annotated[
+        str | None,
+        typer.Option("--profile", help="Named config profile to apply."),
+    ] = None,
     workdir: Annotated[str | None, typer.Option(help="Child process working directory.")] = None,
     timeout: Annotated[
         int | None,
@@ -80,16 +139,18 @@ def dispatch(
             err=True,
         )
         raise typer.Exit(code=2)
-    spec = RunSpec(
+    overrides = _dispatch_overrides(
         cli=cli,
-        prompt=prompt,
-        prompt_mode=PromptMode.STDIN,
         model=model,
         reasoning_effort=_validate_effort(effort),
         allow=allow,
         workdir=workdir,
         timeout_s=timeout,
     )
+    resolved = resolve_dispatch(overrides, config=load_config().config, profile=profile)
+    _echo_warnings(resolved.warnings)
+    cli_name = resolved.kwargs.pop("cli", None) or "claude"
+    spec = RunSpec(cli=cli_name, prompt=prompt, prompt_mode=PromptMode.STDIN, **resolved.kwargs)
     result = asyncio.run(dispatch_wait_run(spec))
     typer.echo(result.model_dump_json())
     if result.is_error:
@@ -99,16 +160,20 @@ def dispatch(
 @app.command()
 def improve(
     prompt: Annotated[str, typer.Argument(help="Task prompt to iterate on.")] = "",
-    cli: Annotated[str, typer.Option(help="Adapter name, e.g. claude.")] = "claude",
+    cli: Annotated[str | None, typer.Option(help="Adapter name, e.g. claude.")] = None,
     model: Annotated[str | None, typer.Option(help="Model id to pass through.")] = None,
     effort: Annotated[
         str | None,
         typer.Option("--effort", help="Reasoning effort: low, medium, high, xhigh."),
     ] = None,
     allow: Annotated[
-        AllowMode,
+        AllowMode | None,
         typer.Option(help="Permission mode. Defaults to read-only."),
-    ] = AllowMode.READ_ONLY,
+    ] = None,
+    profile: Annotated[
+        str | None,
+        typer.Option("--profile", help="Named config profile to apply."),
+    ] = None,
     workdir: Annotated[str | None, typer.Option(help="Child process working directory.")] = None,
     timeout: Annotated[
         int | None,
@@ -137,16 +202,18 @@ def improve(
         typer.echo("max-iterations must be >= 1", err=True)
         raise typer.Exit(code=2)
     check_command = shlex.split(check) if check else None
-    spec = RunSpec(
+    overrides = _dispatch_overrides(
         cli=cli,
-        prompt=prompt,
-        prompt_mode=PromptMode.STDIN,
         model=model,
         reasoning_effort=_validate_effort(effort),
         allow=allow,
         workdir=workdir,
         timeout_s=timeout,
     )
+    resolved = resolve_dispatch(overrides, config=load_config().config, profile=profile)
+    _echo_warnings(resolved.warnings)
+    cli_name = resolved.kwargs.pop("cli", None) or "claude"
+    spec = RunSpec(cli=cli_name, prompt=prompt, prompt_mode=PromptMode.STDIN, **resolved.kwargs)
     plan = ImproveSpec(
         spec=spec,
         check_command=check_command,
@@ -154,7 +221,10 @@ def improve(
         max_iterations=max_iterations,
         use_critic=critic,
     )
-    result = asyncio.run(improve_loop(plan))
+    # Route through the same config-driven kernel as dispatch so improve honors
+    # [adapters].enabled (G11.3) and the configured summarizer, instead of
+    # silently falling back to default_registry() (all adapters).
+    result = asyncio.run(improve_loop(plan, kernel=config_kernel(StatusStore())))
     typer.echo(result.model_dump_json())
     if not result.succeeded:
         raise typer.Exit(code=1)
@@ -235,3 +305,36 @@ def _validate_effort(value: str | None) -> Literal["low", "medium", "high", "xhi
         typer.echo(f"invalid effort: {value}", err=True)
         raise typer.Exit(code=2)
     return cast(Literal["low", "medium", "high", "xhigh"], value)
+
+
+def _dispatch_overrides(
+    *,
+    cli: str | None,
+    model: str | None,
+    reasoning_effort: Literal["low", "medium", "high", "xhigh"] | None,
+    allow: AllowMode | None,
+    workdir: str | None,
+    timeout_s: int | None,
+) -> dict[str, Any]:
+    """Collect only the user-supplied (non-None) flags as dispatch overrides.
+
+    Keeping unset flags out of the override map lets config defaults/profiles
+    fill them in :func:`resolve_dispatch`; passing them as ``None`` would not.
+    """
+
+    candidates: dict[str, Any] = {
+        "cli": cli,
+        "model": model,
+        "reasoning_effort": reasoning_effort,
+        "allow": allow,
+        "workdir": workdir,
+        "timeout_s": timeout_s,
+    }
+    return {key: value for key, value in candidates.items() if value is not None}
+
+
+def _echo_warnings(warnings: list[WarningRecord]) -> None:
+    """Surface resolution warnings (clamps, unknown profile) to stderr as JSON."""
+
+    for warning in warnings:
+        typer.echo(json.dumps(warning.model_dump(mode="json"), ensure_ascii=False), err=True)

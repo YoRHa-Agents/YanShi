@@ -2,7 +2,7 @@
 
 # YanShi 快速开始
 
-> Last-Modified: 2026-06-24
+> Last-Modified: 2026-06-25
 
 几分钟内从零完成你的第一次受监控派发。完整文档位于 <https://yorha-agents.github.io/YanShi/>;本指南是
 快速路径。
@@ -29,7 +29,47 @@ cd YanShi
 安装器优先使用 `uv`,并以 `pip` + `venv` 兜底。你也可以直接用 `uv tool install .`、`uv sync` 或
 `pip install .` 安装。
 
-## 2. 检查环境 —— `yanshi doctor`
+## 2. 初始化工作区配置 —— `yanshi init`
+
+YanShi 会读取一个可选的仓库级 `.yanshi.toml`(从当前目录沿父目录向上 walk 发现,语义同 `.git`)。
+scaffold 一个带注释的起始文件:
+
+```bash
+yanshi init                  # 写入 ./.yanshi.toml;未给 --force 时拒绝覆盖
+```
+
+编辑它以启用适配器子集、打开建议性摘要器,并定义命名 profiles:
+
+```toml
+[adapters]
+enabled = ["claude", "codex"]      # 仅注册这些,并仅由 doctor 检查它们
+
+[summarizer]
+enabled = true                     # 启用超轻量 agent-CLI 摘要观察者
+cli = "claude"
+model = "claude-3-5-haiku-latest"  # 便宜档(haiku / flash / mini)
+
+[profiles.cheap]
+effort = "low"
+cost_ceiling_usd = 0.5
+timeout_s = 600
+
+[profiles.thorough]
+effort = "high"
+timeout_s = 3600
+```
+
+随后核对解析后的分层,并带 profile 派发:
+
+```bash
+yanshi config                                        # 解析后的配置 + provenance(JSON)
+yanshi dispatch --profile cheap "解释这个仓库"        # 套用 [profiles.cheap]
+```
+
+`--profile` 选用一个 `[profiles.<name>]` 预设;未知名字会被忽略并记 warning,且每次调用的参数
+仍优先于 profile 与 `[defaults]`。
+
+## 3. 检查环境 —— `yanshi doctor`
 
 ```bash
 yanshi doctor
@@ -44,7 +84,7 @@ yanshi doctor
 只要任一适配器为 `failed`,`doctor` 即以非零码退出。YanShi 只**检测**厂商 CLI,绝不替你安装或鉴权——
 在派发之前,先修复任何 `failed` 的适配器(安装二进制、登录)。
 
-## 3. 你的第一次派发 —— `yanshi dispatch --wait`
+## 4. 你的第一次派发 —— `yanshi dispatch --wait`
 
 ```bash
 yanshi dispatch --cli claude --effort high --wait \
@@ -66,7 +106,7 @@ CLI 派发是**阻塞**的:它内联运行监控内核,直到 agent 进入终态
 | `--workdir` | 子进程的工作目录。 |
 | `--timeout` | 墙钟超时(秒)。 |
 
-## 4. 低上下文监控 —— `yanshi status` / `yanshi summary`
+## 5. 低上下文监控 —— `yanshi status` / `yanshi summary`
 
 在运行进行中(或结束后,因为读取均为纯磁盘读)用两次极小的拉取观测它。先找到 id:
 
@@ -85,7 +125,7 @@ yanshi summary <agent_id>    # 建议性的 1-3 句滚动摘要
 > `$YANSHI_HOME/agents/<agent_id>/stream.ndjson` 下,仅供审计/调试,除非有人明确索取原始日志,**绝不**
 > 应粘贴进上层 agent 的上下文。
 
-## 5. 阻塞或终止 —— `yanshi wait` / `yanshi cancel`
+## 6. 阻塞或终止 —— `yanshi wait` / `yanshi cancel`
 
 ```bash
 yanshi wait   <agent_id> --timeout 300    # 阻塞至终态(或超时);打印 AgentStatus
@@ -95,7 +135,7 @@ yanshi cancel <agent_id>                  # 优雅信号 -> SIGKILL,随后 final
 `wait` 只是轮询磁盘上的 `AgentStatus.state` 直到终态或超时,绝不重新解析流。处理完旧运行后,用
 `yanshi gc --older-than 604800` 回收磁盘(此处为超过 7 天的运行)。
 
-## 6. 迭代直到闸门通过 —— `yanshi improve`
+## 7. 迭代直到闸门通过 —— `yanshi improve`
 
 `improve` 把单次派发变成一个有界的**派发 → 闸门 → 精修**循环:
 

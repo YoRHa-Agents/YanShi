@@ -7,14 +7,18 @@ import os
 import signal
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
+from yanshi.config import enabled_adapter_names, load_config
 from yanshi.contracts import TERMINAL_STATES, AgentState, AgentStatus, RunResult, RunSpec
 from yanshi.monitor import MonitorKernel
 from yanshi.preflight import PreflightResult, preflight_adapter
 from yanshi.preflight import doctor as run_doctor
-from yanshi.registry import AdapterRegistry, default_registry
+from yanshi.registry import AdapterRegistry, build_registry
 from yanshi.runner import run_blocking
 from yanshi.store import StatusStore
+from yanshi.summarizer import RollingSummarizer, SummarizerConfig
+from yanshi.summary_client import AgentCliSummaryClient
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,36 @@ class DispatchHandle:
 _BACKGROUND_TASKS: dict[str, asyncio.Task[RunResult]] = {}
 
 
+def config_kernel(store: StatusStore | None, *, start: Path | None = None) -> MonitorKernel:
+    """Build a config-driven monitor kernel for the default (registry-None) path.
+
+    Reads the layered repo config to pick the enabled-adapter set and decide
+    whether the advisory rolling summarizer is active. A malformed config
+    propagates (No Silent Failures); an absent config yields builtin defaults
+    (all adapters, summarizer off), so test/CI behavior stays unchanged.
+    """
+
+    loaded = load_config(start=start)
+    registry = build_registry(enabled_adapter_names(loaded.config))
+    settings = loaded.config.summarizer
+    summarizer: RollingSummarizer | None = None
+    summary_client: AgentCliSummaryClient | None = None
+    if settings.enabled:
+        summarizer = RollingSummarizer(SummarizerConfig.from_settings(settings))
+        summary_client = AgentCliSummaryClient(
+            cli=settings.cli,
+            model=settings.model,
+            registry=registry,
+            timeout_s=settings.timeout_s,
+        )
+    return MonitorKernel(
+        registry=registry,
+        store=store,
+        summarizer=summarizer,
+        summary_client=summary_client,
+    )
+
+
 def dispatch(
     spec: RunSpec,
     *,
@@ -36,7 +70,7 @@ def dispatch(
 ) -> RunResult:
     """Dispatch a single task and block until the CLI exits."""
 
-    effective_registry = registry or default_registry()
+    effective_registry = registry or build_registry(enabled_adapter_names(load_config().config))
     adapter = effective_registry.get(spec.cli)
     if not skip_preflight:
         preflight_adapter(adapter, env=spec.env).require_ok()
@@ -54,7 +88,11 @@ async def dispatch_wait(
 ) -> RunResult:
     """Entry B: run the shared monitor kernel inline until terminal result."""
 
-    kernel = MonitorKernel(registry=registry, store=store)
+    kernel = (
+        config_kernel(store)
+        if registry is None
+        else MonitorKernel(registry=registry, store=store)
+    )
     return await kernel.run(spec, skip_preflight=skip_preflight)
 
 
@@ -67,7 +105,11 @@ def dispatch_background(
 ) -> DispatchHandle:
     """Entry A: spawn a background monitor task in the current event loop."""
 
-    kernel = MonitorKernel(registry=registry, store=store)
+    kernel = (
+        config_kernel(store)
+        if registry is None
+        else MonitorKernel(registry=registry, store=store)
+    )
     agent_id = f"ys-{os.getpid()}-{time.time_ns()}"
     task = asyncio.create_task(
         kernel.run(spec, agent_id=agent_id, skip_preflight=skip_preflight),
@@ -151,9 +193,9 @@ def cancel(agent_id: str, *, store: StatusStore | None = None) -> AgentStatus:
 
 
 def doctor(registry: AdapterRegistry | None = None) -> list[PreflightResult]:
-    """Run adapter preflight checks."""
+    """Run adapter preflight checks for the config-enabled adapter set."""
 
-    return run_doctor(registry)
+    return run_doctor(registry or build_registry(enabled_adapter_names(load_config().config)))
 
 
 def _signal_pid(pid: int, sig: signal.Signals) -> None:

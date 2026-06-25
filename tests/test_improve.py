@@ -405,9 +405,11 @@ async def test_integration_real_kernel_refines_prompt(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 def test_cli_improve_parses_check_and_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, ImproveSpec] = {}
+    kernels: list[object] = []
 
-    async def fake_loop(plan: ImproveSpec) -> ImproveResult:
+    async def fake_loop(plan: ImproveSpec, *, kernel: object | None = None) -> ImproveResult:
         captured["plan"] = plan
+        kernels.append(kernel)
         return ImproveResult(succeeded=True, stop_reason="gate_passed")
 
     monkeypatch.setattr(cli_module, "improve_loop", fake_loop)
@@ -419,10 +421,12 @@ def test_cli_improve_parses_check_and_succeeds(monkeypatch: pytest.MonkeyPatch) 
     assert captured["plan"].check_command == ["pytest", "-q"]
     assert captured["plan"].max_iterations == 2
     assert captured["plan"].spec.prompt == "fix it"
+    # The CLI must route improve through the config-driven kernel (G11.3).
+    assert kernels and kernels[0] is not None
 
 
 def test_cli_improve_failure_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_loop(plan: ImproveSpec) -> ImproveResult:
+    async def fake_loop(plan: ImproveSpec, *, kernel: object | None = None) -> ImproveResult:
         return ImproveResult(succeeded=False, stop_reason="max_iterations")
 
     monkeypatch.setattr(cli_module, "improve_loop", fake_loop)

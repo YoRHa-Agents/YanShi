@@ -13,7 +13,7 @@ English | [简体中文](README.zh-CN.md)
 
 </div>
 
-> Last-Modified: 2026-06-24
+> Last-Modified: 2026-06-25
 
 **YanShi** lets a parent agent dispatch work to any headless agent CLI — `claude`, `codex`,
 `cursor-agent`, `gemini` — through **one contract**, then monitor it with **deterministic,
@@ -99,6 +99,24 @@ A longer zero-to-first-dispatch walkthrough lives in [QUICKSTART.md](./QUICKSTAR
 > **Low-context rule:** poll only `status` and `summary`. Raw streams under
 > `$YANSHI_HOME/agents/<id>/stream.ndjson` are for audit/debugging and must not be pasted into the
 > parent context.
+
+## Configuration
+
+YanShi reads an optional repo-level `.yanshi.toml` (discovered by walking up from the current
+directory, like `.git`), layered under a global `$YANSHI_HOME/config.toml` and overridden per call.
+Run `yanshi init` to scaffold a commented starter file (`--global` writes the shared config; it
+refuses to overwrite an existing file without `--force`):
+
+```bash
+yanshi init                  # scaffold ./.yanshi.toml
+yanshi config                # print the resolved config + provenance as JSON
+```
+
+One file controls which **adapters** are enabled, dispatch **defaults**, named **profiles**
+(selected with `--profile`), hard **limits** (clamped with a warning), and the **summarizer** (an
+opt-in ultra-light agent-CLI watcher, off by default). Different repos can therefore expose
+different capabilities on the same machine; `yanshi config` shows each resolved value and which
+layer it came from.
 
 ## CLI cheat-sheet
 

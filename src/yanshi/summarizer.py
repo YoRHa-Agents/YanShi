@@ -5,11 +5,16 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
 from yanshi.contracts import AgentStatus, EventKind, Usage, YanShiEvent
+
+if TYPE_CHECKING:
+    # config does not import summarizer, so this is cycle-free; kept under
+    # TYPE_CHECKING to keep the advisory summarizer free of a runtime config dep.
+    from yanshi.config import SummarizerSettings
 
 
 class SummaryClient(Protocol):
@@ -27,6 +32,21 @@ class SummarizerConfig:
     min_new_events: int = 2
     max_tokens: int = 150
     watcher_token_ceiling: int = 1_000
+
+    @classmethod
+    def from_settings(cls, settings: SummarizerSettings) -> SummarizerConfig:
+        """Map a ``SummarizerSettings``-shaped object into a throttle/budget config.
+
+        Only the four throttle/budget fields are mapped; ``enabled``/``cli``/
+        ``model``/``timeout_s`` are wiring concerns handled by the caller.
+        """
+
+        return cls(
+            debounce_s=settings.debounce_s,
+            min_new_events=settings.min_new_events,
+            max_tokens=settings.max_tokens,
+            watcher_token_ceiling=settings.watcher_token_ceiling,
+        )
 
 
 class SummaryResult(BaseModel):

@@ -98,6 +98,29 @@ The summarizer is throttled and degrades gracefully:
   exceeded, it concatenates the last few significant events instead. The result carries a
   `used_llm` provenance flag and a warning, so a degraded summary is never mistaken for a model one.
 
+### How the summary is produced — an opt-in agent-CLI watcher
+
+The rolling summary is produced by an **opt-in, ultra-light one-shot agent-CLI call**, not a
+long-lived model session. It is configured under `[summarizer]` in `.yanshi.toml` and is **off by
+default** (`enabled = false`):
+
+- `enabled` — master switch; while `false`, the summary is *always* the deterministic fallback.
+- `cli` — which adapter runs the summary (must be in `[adapters].enabled`).
+- `model` — a cheap-tier model (haiku / flash / mini class) keeps the watcher near-free.
+- throttle / budget knobs — `debounce_s`, `min_new_events`, `max_tokens`, `watcher_token_ceiling`,
+  and `timeout_s` bound how often and how expensively it runs.
+
+When triggered, YanShi feeds one compact event digest through a single **read-only**, non-monitored
+CLI call, executed off the monitor event loop so it stays **non-blocking**. The watcher is
+**single-flight** (one summary at a time, gated by the debounce window) and **bounded** (a per-call
+`timeout_s` plus a cumulative `watcher_token_ceiling`); it spawns no monitored dispatch, writes no
+agent state, and never summarizes itself recursively.
+
+Crucially, it **always degrades to the deterministic event-concatenation fallback**: a missing or
+unauthenticated CLI, a timeout, an unparseable reply, or an exhausted budget each surface as a
+warning while the last few significant events are concatenated instead. A failing watcher therefore
+**never blocks or aborts the monitored run**.
+
 ## Anti-hallucination guarantees
 
 - Every field a caller might act on comes from the deterministic reducer.
