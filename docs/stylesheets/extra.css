@@ -1,0 +1,350 @@
+:root {
+  --color-bg: oklch(0.145 0.012 285);
+  --color-surface: oklch(0.205 0.018 285);
+  --color-surface-2: oklch(0.275 0.022 285);
+  --color-ink: oklch(0.94 0.018 92);
+  --color-muted: oklch(0.74 0.025 285);
+  --color-thread: oklch(0.842 0.165 91.3);
+  --color-thread-strong: oklch(0.78 0.18 82);
+  --color-shadow: oklch(0.36 0.08 305);
+  --color-danger: oklch(0.67 0.2 28);
+  --ys-border: color-mix(in oklch, var(--color-thread) 26%, transparent);
+  --ys-border-muted: color-mix(in oklch, var(--color-muted) 22%, transparent);
+  --ys-glow: color-mix(in oklch, var(--color-thread) 14%, transparent);
+  --ys-max-width: 68rem;
+}
+
+[data-md-color-scheme="slate"],
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: var(--color-bg);
+  --md-default-fg-color: var(--color-ink);
+  --md-default-fg-color--light: var(--color-muted);
+  --md-default-fg-color--lighter: color-mix(in oklch, var(--color-muted) 72%, transparent);
+  --md-primary-fg-color: color-mix(in oklch, var(--color-bg) 88%, black);
+  --md-primary-bg-color: var(--color-ink);
+  --md-accent-fg-color: var(--color-thread);
+  --md-typeset-a-color: var(--color-thread);
+  --md-code-bg-color: color-mix(in oklch, var(--color-surface) 86%, black);
+  --md-code-fg-color: var(--color-ink);
+  --md-code-hl-color: color-mix(in oklch, var(--color-thread) 18%, transparent);
+  --md-footer-bg-color: color-mix(in oklch, var(--color-bg) 92%, black);
+  --md-footer-bg-color--dark: color-mix(in oklch, var(--color-bg) 86%, black);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(circle at 78% 6%, color-mix(in oklch, var(--color-shadow) 24%, transparent), transparent 28rem),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface) 36%, var(--color-bg)), var(--color-bg) 28rem);
+}
+
+.md-header,
+.md-tabs {
+  background-color: color-mix(in oklch, var(--color-bg) 88%, black);
+  border-bottom: 1px solid var(--ys-border-muted);
+  box-shadow: 0 0.4rem 2rem color-mix(in oklch, black 28%, transparent);
+}
+
+.md-search__form {
+  background-color: color-mix(in oklch, var(--color-surface) 76%, transparent);
+  border: 1px solid var(--ys-border-muted);
+}
+
+.md-main__inner {
+  margin-top: 0;
+}
+
+.md-content {
+  max-width: none;
+}
+
+.md-content__inner {
+  margin: 0 auto;
+  max-width: var(--ys-max-width);
+  padding-top: 1.4rem;
+}
+
+.md-typeset {
+  color: var(--color-ink);
+  font-size: 0.82rem;
+  line-height: 1.72;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  color: var(--color-ink);
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+
+.md-typeset h1 {
+  margin-bottom: 0.65rem;
+  font-size: clamp(2.5rem, 7vw, 5.7rem);
+  line-height: 0.95;
+}
+
+.md-typeset h2 {
+  margin-top: 0;
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+}
+
+.md-typeset h3 {
+  font-size: 1.05rem;
+}
+
+.md-typeset p,
+.md-typeset li {
+  max-width: 74ch;
+}
+
+.md-typeset a:not(.md-button) {
+  text-decoration-color: color-mix(in oklch, var(--color-thread) 48%, transparent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+.md-typeset a:not(.md-button):hover {
+  color: var(--color-thread-strong);
+  text-decoration-color: currentcolor;
+}
+
+.md-typeset a:focus-visible,
+.md-typeset .md-button:focus-visible,
+.md-search__input:focus-visible {
+  outline: 0.16rem solid var(--color-thread-strong);
+  outline-offset: 0.14rem;
+}
+
+.md-typeset .md-button {
+  border-color: var(--ys-border);
+  border-radius: 999rem;
+  color: var(--color-ink);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.md-typeset .md-button:hover {
+  border-color: var(--color-thread-strong);
+  background-color: color-mix(in oklch, var(--color-thread) 12%, transparent);
+  box-shadow: 0 0 1.2rem var(--ys-glow);
+  transform: translateY(-1px);
+}
+
+.md-typeset .md-button--primary {
+  border-color: color-mix(in oklch, var(--color-thread) 76%, white);
+  background-color: var(--color-thread);
+  color: color-mix(in oklch, var(--color-bg) 86%, black);
+}
+
+.md-typeset .md-button--primary:hover {
+  background-color: var(--color-thread-strong);
+  color: color-mix(in oklch, var(--color-bg) 88%, black);
+}
+
+.ys-hero,
+.ys-section {
+  position: relative;
+  margin: 1.2rem 0 2rem;
+  border: 1px solid var(--ys-border-muted);
+  border-radius: 1.2rem;
+  background: linear-gradient(145deg, color-mix(in oklch, var(--color-surface) 88%, transparent), color-mix(in oklch, var(--color-bg) 92%, transparent));
+  box-shadow: 0 1.1rem 3rem color-mix(in oklch, black 24%, transparent);
+}
+
+.ys-hero {
+  overflow: hidden;
+  padding: clamp(1.5rem, 5vw, 3.8rem);
+  border-color: color-mix(in oklch, var(--color-thread) 34%, transparent);
+}
+
+.ys-hero::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(90deg, transparent, var(--ys-border), transparent) 0 26% / 100% 1px no-repeat,
+    radial-gradient(circle at 72% 20%, var(--ys-glow), transparent 19rem);
+}
+
+.ys-hero > * {
+  position: relative;
+}
+
+.ys-hero p:first-of-type {
+  max-width: 46rem;
+  margin-top: 0;
+  color: var(--color-ink);
+  font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+  line-height: 1.45;
+}
+
+.ys-hero p:nth-of-type(2) {
+  max-width: 54rem;
+  color: var(--color-muted);
+  font-size: clamp(0.92rem, 1.6vw, 1.08rem);
+}
+
+.ys-section {
+  padding: clamp(1.1rem, 3vw, 2rem);
+}
+
+.ys-section--thread {
+  border-color: color-mix(in oklch, var(--color-thread) 34%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--color-thread) 12%, transparent),
+    0 1.1rem 3rem color-mix(in oklch, black 24%, transparent);
+}
+
+.ys-section--thread::before {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  left: 1.25rem;
+  height: 1px;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--ys-border), transparent);
+}
+
+.ys-section--cards {
+  background: color-mix(in oklch, var(--color-surface) 78%, black);
+}
+
+.ys-flow {
+  counter-reset: ys-step;
+}
+
+.ys-flow ol {
+  display: grid;
+  gap: 0.8rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.ys-flow li {
+  position: relative;
+  max-width: none;
+  padding: 0.95rem 1rem 0.95rem 3.2rem;
+  border: 1px solid var(--ys-border-muted);
+  border-radius: 0.9rem;
+  background-color: color-mix(in oklch, var(--color-bg) 55%, var(--color-surface));
+}
+
+.ys-flow li::before {
+  position: absolute;
+  top: 0.9rem;
+  left: 1rem;
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border: 1px solid var(--ys-border);
+  border-radius: 50%;
+  color: var(--color-thread);
+  content: counter(list-item);
+  font-weight: 700;
+}
+
+.ys-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.ys-card {
+  min-height: 100%;
+  padding: 1rem;
+  border: 1px solid var(--ys-border-muted);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-2) 64%, transparent), color-mix(in oklch, var(--color-surface) 88%, transparent));
+}
+
+.ys-card h3 {
+  margin-top: 0;
+}
+
+.ys-card p:last-child {
+  margin-bottom: 0;
+}
+
+.ys-next {
+  border-color: var(--ys-border);
+}
+
+.md-typeset table:not([class]) {
+  overflow: hidden;
+  border: 1px solid var(--ys-border-muted);
+  border-radius: 0.85rem;
+  background-color: color-mix(in oklch, var(--color-surface) 82%, transparent);
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--color-surface-2);
+  color: var(--color-ink);
+}
+
+.md-typeset table:not([class]) td {
+  border-top-color: var(--ys-border-muted);
+}
+
+.md-typeset code,
+.md-typeset pre {
+  border-radius: 0.35rem;
+}
+
+.md-typeset code {
+  color: color-mix(in oklch, var(--color-thread) 80%, var(--color-ink));
+}
+
+.md-typeset pre > code {
+  border: 1px solid var(--ys-border-muted);
+  color: var(--color-ink);
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-color: var(--ys-border);
+  background-color: color-mix(in oklch, var(--color-surface) 78%, transparent);
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  background-color: color-mix(in oklch, var(--color-thread) 12%, transparent);
+  color: var(--color-ink);
+}
+
+@media screen and (max-width: 48rem) {
+  .md-content__inner {
+    padding-right: 0.8rem;
+    padding-left: 0.8rem;
+  }
+
+  .ys-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ys-hero,
+  .ys-section {
+    border-radius: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .md-typeset .md-button:hover {
+    transform: none;
+  }
+}

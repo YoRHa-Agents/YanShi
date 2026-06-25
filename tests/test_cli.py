@@ -14,6 +14,26 @@ from yanshi.contracts import AgentState, AgentStatus, AllowMode, RunResult, RunS
 from yanshi.preflight import PreflightResult
 
 
+def test_cli_help_uses_yanshi_framing() -> None:
+    runner = CliRunner()
+
+    root = runner.invoke(app, ["--help"])
+    assert root.exit_code == 0
+    assert "YanShi (偃师)" in root.stdout
+    assert "parent agent remains" in root.stdout
+    assert "control threads" in root.stdout
+
+    dispatch = runner.invoke(app, ["dispatch", "--help"])
+    assert dispatch.exit_code == 0
+    assert "argv-structured dispatch" in dispatch.stdout
+    assert "Enabled adapter mechanism name" in dispatch.stdout
+    assert "read-only unless configured" in dispatch.stdout
+
+    status = runner.invoke(app, ["status", "--help"])
+    assert status.exit_code == 0
+    assert "status control thread" in status.stdout
+
+
 def test_cli_doctor_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         cli_module,

@@ -1,4 +1,4 @@
-"""YanShi command-line interface."""
+"""YanShi command-line interface for supervising agent CLI mechanisms."""
 
 from __future__ import annotations
 
@@ -31,12 +31,18 @@ from yanshi.dispatch import wait as wait_run
 from yanshi.improve import improve_loop
 from yanshi.store import StatusStore
 
-app = typer.Typer(help="YanShi vendor-neutral agent-CLI dispatcher.")
+app = typer.Typer(
+    help=(
+        "YanShi (偃师) is a vendor-neutral dispatcher: the parent agent remains "
+        "the artisan, enabled adapter CLIs are mechanisms, and status/summary "
+        "commands read deterministic control threads."
+    )
+)
 
 
 @app.command()
 def doctor() -> None:
-    """Check registered adapter executables and authentication state."""
+    """Check enabled adapter mechanisms, executables, and auth state."""
 
     results = doctor_run()
     for result in results:
@@ -64,7 +70,7 @@ def init(
         bool,
         typer.Option(
             "--global/--local",
-            help="Write the global config instead of ./.yanshi.toml.",
+            help="Write the global config instead of this repo's ./.yanshi.toml.",
         ),
     ] = False,
     force: Annotated[
@@ -72,7 +78,7 @@ def init(
         typer.Option("--force", help="Overwrite an existing config file."),
     ] = False,
 ) -> None:
-    """Write a commented starter config (local ./.yanshi.toml by default)."""
+    """Write a starter config for mechanisms, defaults, limits, and summaries."""
 
     target = global_config_path() if global_ else Path.cwd() / DEFAULT_CONFIG_FILENAME
     if target.exists() and not force:
@@ -88,7 +94,7 @@ def init(
 
 @app.command()
 def config() -> None:
-    """Print the effective layered configuration and its provenance as JSON."""
+    """Print effective repo/global configuration layering as JSON."""
 
     loaded = load_config()
     typer.echo(
@@ -106,20 +112,26 @@ def config() -> None:
 
 @app.command()
 def dispatch(
-    cli: Annotated[str | None, typer.Option(help="Adapter name, e.g. claude.")] = None,
-    prompt: Annotated[str, typer.Argument(help="Prompt to send to the agent CLI.")] = "",
-    model: Annotated[str | None, typer.Option(help="Model id to pass through.")] = None,
+    cli: Annotated[
+        str | None,
+        typer.Option(help="Enabled adapter mechanism name, e.g. claude."),
+    ] = None,
+    prompt: Annotated[
+        str,
+        typer.Argument(help="Prompt for the child agent CLI."),
+    ] = "",
+    model: Annotated[str | None, typer.Option(help="Model id passed through unchanged.")] = None,
     effort: Annotated[
         str | None,
         typer.Option("--effort", help="Reasoning effort: low, medium, high, xhigh."),
     ] = None,
     allow: Annotated[
         AllowMode | None,
-        typer.Option(help="Permission mode. Defaults to read-only."),
+        typer.Option(help="Permission mode; defaults stay read-only unless configured."),
     ] = None,
     profile: Annotated[
         str | None,
-        typer.Option("--profile", help="Named config profile to apply."),
+        typer.Option("--profile", help="Named defaults/limits profile to apply."),
     ] = None,
     workdir: Annotated[str | None, typer.Option(help="Child process working directory.")] = None,
     timeout: Annotated[
@@ -128,10 +140,10 @@ def dispatch(
     ] = None,
     wait: Annotated[
         bool,
-        typer.Option("--wait/--no-wait", help="YanShi CLI dispatch is blocking."),
+        typer.Option("--wait/--no-wait", help="CLI dispatch is blocking by design."),
     ] = True,
 ) -> None:
-    """Run a blocking dispatch through the monitor kernel and print RunResult."""
+    """Run one argv-structured dispatch and print RunResult JSON."""
 
     if not wait:
         typer.echo(
@@ -160,19 +172,22 @@ def dispatch(
 @app.command()
 def improve(
     prompt: Annotated[str, typer.Argument(help="Task prompt to iterate on.")] = "",
-    cli: Annotated[str | None, typer.Option(help="Adapter name, e.g. claude.")] = None,
-    model: Annotated[str | None, typer.Option(help="Model id to pass through.")] = None,
+    cli: Annotated[
+        str | None,
+        typer.Option(help="Enabled adapter mechanism name, e.g. claude."),
+    ] = None,
+    model: Annotated[str | None, typer.Option(help="Model id passed through unchanged.")] = None,
     effort: Annotated[
         str | None,
         typer.Option("--effort", help="Reasoning effort: low, medium, high, xhigh."),
     ] = None,
     allow: Annotated[
         AllowMode | None,
-        typer.Option(help="Permission mode. Defaults to read-only."),
+        typer.Option(help="Permission mode; defaults stay read-only unless configured."),
     ] = None,
     profile: Annotated[
         str | None,
-        typer.Option("--profile", help="Named config profile to apply."),
+        typer.Option("--profile", help="Named defaults/limits profile to apply."),
     ] = None,
     workdir: Annotated[str | None, typer.Option(help="Child process working directory.")] = None,
     timeout: Annotated[
@@ -181,7 +196,7 @@ def improve(
     ] = None,
     check: Annotated[
         str | None,
-        typer.Option("--check", help="Deterministic gate command (exit 0 = pass)."),
+        typer.Option("--check", help="Deterministic gate command; exit 0 passes."),
     ] = None,
     max_iterations: Annotated[
         int,
@@ -196,7 +211,7 @@ def improve(
         typer.Option("--critic/--no-critic", help="Enable the advisory LLM critic."),
     ] = False,
 ) -> None:
-    """Run a bounded dispatch->gate->refine loop and print the ImproveResult."""
+    """Run bounded dispatch->gate->refine cycles and print ImproveResult JSON."""
 
     if max_iterations < 1:
         typer.echo("max-iterations must be >= 1", err=True)
@@ -232,35 +247,35 @@ def improve(
 
 @app.command()
 def status(agent_id: str) -> None:
-    """Read an agent status snapshot from disk."""
+    """Read the deterministic status control thread for an agent."""
 
     typer.echo(status_run(agent_id).model_dump_json())
 
 
 @app.command()
 def summary(agent_id: str) -> None:
-    """Read an agent summary from disk."""
+    """Read the optional summary control thread for an agent."""
 
     typer.echo(summary_run(agent_id))
 
 
 @app.command()
 def wait(agent_id: str, timeout: Annotated[float | None, typer.Option("--timeout")] = None) -> None:
-    """Wait until an agent reaches a terminal state."""
+    """Wait on the status control thread until a terminal state."""
 
     typer.echo(asyncio.run(wait_run(agent_id, timeout_s=timeout)).model_dump_json())
 
 
 @app.command(name="list")
 def list_command() -> None:
-    """List known agent ids."""
+    """List agent ids with retained control-thread state."""
 
     typer.echo(json.dumps(list_agents_run(), ensure_ascii=False))
 
 
 @app.command()
 def cancel(agent_id: str) -> None:
-    """Cancel an agent by id."""
+    """Request cancellation for an agent by id."""
 
     typer.echo(cancel_run(agent_id).model_dump_json())
 
@@ -272,20 +287,20 @@ def gc(
         typer.Option("--older-than", help="Age in seconds."),
     ] = 86400,
 ) -> None:
-    """Garbage collect terminal runs older than a threshold."""
+    """Garbage collect retained control-thread state older than a threshold."""
 
     typer.echo(json.dumps(StatusStore().gc(older_than_s=older_than), ensure_ascii=False))
 
 
 @app.command()
 def record(
-    cli: Annotated[str, typer.Option(help="Adapter name.")] = "claude",
+    cli: Annotated[str, typer.Option(help="Adapter mechanism name.")] = "claude",
     prompt: Annotated[str, typer.Argument(help="Prompt to record.")] = "hello",
     output: Annotated[Path, typer.Option("--output", help="Fixture output path.")] = Path(
         "tests/fixtures/recorded.ndjson"
     ),
 ) -> None:
-    """Run a CLI once and copy its retained raw stream into a fixture file."""
+    """Run a mechanism once and copy its retained raw stream into a fixture."""
 
     spec = RunSpec(cli=cli, prompt=prompt, prompt_mode=PromptMode.STDIN)
     result = asyncio.run(dispatch_wait_run(spec))

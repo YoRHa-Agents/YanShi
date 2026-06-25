@@ -1,4 +1,4 @@
-"""Repo-level configuration for YanShi.
+"""Repo-level configuration for YanShi mechanisms and control threads.
 
 This is the keystone config module consumed by the registry, dispatcher, and
 CLI. It defines the on-disk `.yanshi.toml` schema (pydantic v2 models with
@@ -54,7 +54,7 @@ _SECTIONS: tuple[str, ...] = ("adapters", "summarizer", "defaults", "limits", "p
 
 
 class AdaptersConfig(BaseModel):
-    """Which agent CLIs YanShi may dispatch to (``None`` means all)."""
+    """Which adapter mechanisms YanShi may dispatch to (``None`` means all)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -62,7 +62,7 @@ class AdaptersConfig(BaseModel):
 
 
 class SummarizerSettings(BaseModel):
-    """Advisory rolling-summarizer settings (off by default)."""
+    """Optional summary control-thread settings (off by default)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -77,7 +77,7 @@ class SummarizerSettings(BaseModel):
 
 
 class DefaultsConfig(BaseModel):
-    """Default dispatch values applied to every call (lowest precedence).
+    """Default mechanism choices applied to every dispatch (lowest precedence).
 
     ``reasoning_effort`` is exposed under the TOML key ``effort`` via an alias;
     ``populate_by_name=True`` keeps the python attribute name usable too.
@@ -201,7 +201,7 @@ def load_config(
 
 
 def enabled_adapter_names(config: YanshiConfig) -> list[str] | None:
-    """Return the configured adapter allow-list (``None`` means all)."""
+    """Return the enabled mechanism allow-list (``None`` means all)."""
 
     return config.adapters.enabled
 
@@ -411,23 +411,26 @@ def _normalize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 _DEFAULT_CONFIG_TEMPLATE = """\
-# YanShi repository configuration (.yanshi.toml)
-# Every value below is optional; omitted keys fall back to builtin defaults.
+# YanShi (偃师) repository configuration (.yanshi.toml)
+# The parent agent remains the artisan. This file chooses which CLI mechanisms
+# may be used here, then sets shared defaults, hard limits, and optional summary
+# control threads. Every value is optional; omitted keys fall back to builtins.
 
 [adapters]
-# Restrict which agent CLIs YanShi may dispatch to. Remove this key (or the
-# whole section) to leave every installed adapter enabled. Names are validated
-# against the real adapter registry at dispatch time.
+# Choose the enabled mechanisms for this repo. Remove this key (or the whole
+# section) to leave every installed adapter mechanism available. Names are
+# validated against the real adapter registry at dispatch time.
 enabled = ["claude", "codex", "cursor", "gemini"]
 
 [summarizer]
-# Advisory rolling summaries are OFF by default and never alter status fields.
+# Optional summary control threads are OFF by default. When enabled they are
+# advisory only: deterministic status remains the source of truth.
 enabled = false
-# CLI used to produce summaries when enabled.
+# Mechanism used to produce summaries when enabled.
 cli = "claude"
-# Model for the summarizer CLI; omit to use the CLI's own default.
+# Model for that summarizer mechanism; omit to use the CLI's own default.
 model = "claude-3-5-haiku-latest"
-# Minimum seconds between summary refreshes (debounce).
+# Minimum seconds between summary refreshes.
 debounce_s = 5.0
 # Minimum number of new significant events before re-summarizing.
 min_new_events = 2
@@ -435,26 +438,29 @@ min_new_events = 2
 max_tokens = 150
 # Total watcher token budget before falling back to deterministic text.
 watcher_token_ceiling = 1000
-# Per-summary CLI timeout, in seconds.
+# Per-summary mechanism timeout, in seconds.
 timeout_s = 60
 
 [defaults]
-# Default reasoning effort for every dispatch: low | medium | high | xhigh.
+# Defaults are applied to every dispatch before any named profile or CLI flag.
+# Reasoning effort: low | medium | high | xhigh.
 effort = "medium"
-# Default permission model for every dispatch: read-only | yolo.
+# Permission model: read-only | yolo. Keep read-only unless a task truly needs
+# write access and your limits allow it.
 allow = "read-only"
-# Default overall timeout per dispatch, in seconds.
+# Overall timeout per dispatch, in seconds.
 timeout_s = 1800
-# Default stall (no-progress) timeout per dispatch, in seconds.
+# Stall (no-progress) timeout per dispatch, in seconds.
 stall_timeout_s = 300
-# Optionally pin a default CLI / model / cost ceiling for every dispatch.
+# Optionally pin a default mechanism, model, or cost ceiling for every dispatch.
 # cli = "claude"
 # model = "claude-3-7-sonnet-latest"
 # cost_ceiling_usd = 5.0
 
 [limits]
-# Hard caps enforced on every dispatch regardless of profile or per-call
-# overrides. Uncomment to activate; requests above a cap are clamped + warned.
+# Hard caps are enforced after defaults, profiles, and per-call overrides.
+# Uncomment to activate; requests above a cap are clamped and surfaced as
+# warnings instead of being ignored.
 # max_allow = "read-only"
 # max_cost_usd = 10.0
 # max_timeout_s = 3600
