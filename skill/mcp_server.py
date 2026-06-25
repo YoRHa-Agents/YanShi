@@ -25,16 +25,21 @@ def get_config() -> dict[str, object]:
     }
 
 
-def dispatch(prompt: str, cli: str = "claude", profile: str | None = None) -> dict[str, object]:
+def dispatch(prompt: str, cli: str | None = None, profile: str | None = None) -> dict[str, object]:
     """Blocking dispatch wrapper returning a JSON-ready RunResult dict.
 
     Dispatch defaults/profile/limits come from the layered repo config; any
     clamp/unknown-profile warnings are appended to the result ``warnings`` list
     so hosts never lose them silently.
+
+    ``cli`` is only treated as an explicit override when the caller actually
+    supplies it (mirroring the CLI). Passing it unconditionally would shadow
+    ``[defaults].cli`` / ``[profiles.<name>].cli`` from the repo config.
     """
 
-    resolved = resolve_dispatch({"cli": cli}, config=load_config().config, profile=profile)
-    cli_name = resolved.kwargs.pop("cli", None) or cli
+    overrides: dict[str, object] = {} if cli is None else {"cli": cli}
+    resolved = resolve_dispatch(overrides, config=load_config().config, profile=profile)
+    cli_name = resolved.kwargs.pop("cli", None) or cli or "claude"
     spec = RunSpec(cli=cli_name, prompt=prompt, **resolved.kwargs)
     result = asyncio.run(dispatch_wait(spec))
     payload = result.model_dump(mode="json")
