@@ -22,6 +22,8 @@ SCOPE=""                 # local | global  (default: local)
 WITH_MCP=0
 WITH_DEV=0
 WITH_DOCS=0
+SKILL_REG=1              # register skill/SKILL.md into agent homes (default: on)
+SKILL_DIR=""             # explicit skills home override (else auto-detect)
 DRY_RUN=0
 LANG_CHOICE=""           # zh | en  (default: inferred from $LANG)
 REPO_URL="https://github.com/YoRHa-Agents/YanShi.git"
@@ -106,6 +108,8 @@ usage() {
   --global       将 `yanshi` 安装到 PATH(uv tool / pipx / pip --user)。
   --with-mcp     校验 yanshi.dispatch 导入与 skill/mcp_server.py,并打印
                  将 skill.mcp_server 接入 MCP host 的指引(与具体 host 无关)。
+  --no-skill     跳过把 skill (SKILL.md) 注册到 agent skills 目录(默认会注册)。
+  --skill-dir D  指定 skill 注册目标目录(默认自动探测 ~/.cursor、~/.claude、~/.agents)。
   --dev          安装开发依赖(配合 --local)。
   --docs         安装文档依赖。
   --dry-run      仅打印将要执行的操作,然后退出且不做任何更改。
@@ -115,6 +119,7 @@ usage() {
 示例 (Examples):
   ./install.sh --local --dev
   ./install.sh --global --with-mcp
+  ./install.sh --local --skill-dir ~/.cursor/skills
   ./install.sh --dry-run --local
 EOF
   else
@@ -127,6 +132,8 @@ Options:
   --global       Install `yanshi` onto your PATH (uv tool / pipx / pip --user).
   --with-mcp     Verify the yanshi.dispatch import and skill/mcp_server.py, then
                  print host-agnostic guidance for wiring skill.mcp_server into an MCP host.
+  --no-skill     Skip registering the skill (SKILL.md) into agent skills homes (registered by default).
+  --skill-dir D  Register the skill into D (default: auto-detect ~/.cursor, ~/.claude, ~/.agents).
   --dev          Include dev dependencies (with --local).
   --docs         Include docs dependencies.
   --dry-run      Print every action that WOULD run, then exit without changes.
@@ -136,6 +143,7 @@ Options:
 Examples:
   ./install.sh --local --dev
   ./install.sh --global --with-mcp
+  ./install.sh --local --skill-dir ~/.cursor/skills
   ./install.sh --dry-run --local
 EOF
   fi
@@ -192,6 +200,17 @@ while [ "$#" -gt 0 ]; do
     --local)    SCOPE="local" ;;
     --global)   SCOPE="global" ;;
     --with-mcp) WITH_MCP=1 ;;
+    --skill)    SKILL_REG=1 ;;
+    --no-skill) SKILL_REG=0 ;;
+    --skill-dir)
+      shift || { detect_lang; die "--skill-dir requires an argument (a directory)" "--skill-dir 需要一个参数(目录)" 2; }
+      SKILL_DIR="${1:-}"
+      [ -n "${SKILL_DIR}" ] || { detect_lang; die "--skill-dir requires a non-empty directory" "--skill-dir 需要非空目录" 2; }
+      ;;
+    --skill-dir=*)
+      SKILL_DIR="${1#--skill-dir=}"
+      [ -n "${SKILL_DIR}" ] || { detect_lang; die "--skill-dir requires a non-empty directory" "--skill-dir 需要非空目录" 2; }
+      ;;
     --dev)      WITH_DEV=1 ;;
     --docs)     WITH_DOCS=1 ;;
     --dry-run)  DRY_RUN=1 ;;
@@ -383,6 +402,85 @@ EOF
 }
 
 # --------------------------------------------------------------------------- #
+# Resolve a runnable `yanshi` command for the active scope, or empty if none is
+# available yet (e.g. a fresh global install not yet on PATH).
+# --------------------------------------------------------------------------- #
+yanshi_bin() {
+  local candidate
+  # Editable/local: the freshly-installed entry point lives in the repo .venv.
+  if [ "${SCOPE}" = "local" ]; then
+    candidate="${REPO_DIR:-.}/.venv/bin/yanshi"
+    if [ -x "${candidate}" ]; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  fi
+  # Global: prefer the binary we just installed (UV_TOOL_BIN_DIR when the caller
+  # directs uv there) over an older `yanshi` that may already be on PATH.
+  if [ "${SCOPE}" = "global" ] && [ -n "${UV_TOOL_BIN_DIR:-}" ] && [ -x "${UV_TOOL_BIN_DIR}/yanshi" ]; then
+    printf '%s' "${UV_TOOL_BIN_DIR}/yanshi"
+    return 0
+  fi
+  if have yanshi; then
+    printf 'yanshi'
+    return 0
+  fi
+  # A fresh global install may not be on PATH in this same shell yet; probe the
+  # common tool-bin locations used by `uv tool` / pipx / `pip install --user`.
+  for candidate in \
+    "${UV_TOOL_BIN_DIR:+${UV_TOOL_BIN_DIR}/yanshi}" \
+    "${HOME:+${HOME}/.local/bin/yanshi}"; do
+    if [ -n "${candidate}" ] && [ -x "${candidate}" ]; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  done
+  printf ''
+}
+
+# --------------------------------------------------------------------------- #
+# Register the skill (SKILL.md) into agent skills homes so a parent agent can
+# discover YanShi. Best-effort: a missing agent home WARNS (never fails the
+# install), but real errors are surfaced (No Silent Failures).
+# --------------------------------------------------------------------------- #
+register_skill() {
+  if [ "${SKILL_REG}" -ne 1 ]; then
+    info "Skipping skill registration (--no-skill)." "已跳过 skill 注册(--no-skill)。"
+    return 0
+  fi
+  info "Registering the YanShi skill so agents can discover it..." \
+       "正在注册 YanShi skill,便于上层 agent 发现..."
+
+  local -a reg_args=(skill register --best-effort)
+  if [ -n "${SKILL_DIR}" ]; then
+    reg_args+=(--skills-dir "${SKILL_DIR}")
+  fi
+
+  local yanshi_cmd
+  yanshi_cmd="$(yanshi_bin)"
+  if [ "${DRY_RUN}" -eq 1 ]; then
+    printf '  [dry-run] %s %s\n' "${yanshi_cmd:-yanshi}" "${reg_args[*]}"
+    return 0
+  fi
+
+  if [ -z "${yanshi_cmd}" ]; then
+    warn "yanshi is not runnable yet; register the skill later with 'yanshi skill register'" \
+         "yanshi 暂不可用;稍后请用 'yanshi skill register' 注册 skill"
+    return 0
+  fi
+
+  # `--best-effort` keeps a "no agent home found" case as exit 0 (warned on
+  # stderr); a non-zero exit means a real failure, which we surface but do not
+  # let abort the install (mirrors the doctor step).
+  if "${yanshi_cmd}" "${reg_args[@]}"; then
+    info "Skill registered." "skill 已注册。"
+  else
+    warn "Skill registration did not complete; register later with 'yanshi skill register'" \
+         "skill 注册未完成;稍后可用 'yanshi skill register' 注册"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
 # Post-install: `yanshi doctor` (informational only; never fails the install)
 # --------------------------------------------------------------------------- #
 run_doctor() {
@@ -429,14 +527,15 @@ run_doctor() {
 # Main
 # --------------------------------------------------------------------------- #
 main() {
-  info "YanShi installer — scope=${SCOPE}, dry-run=${DRY_RUN}, with-mcp=${WITH_MCP}" \
-       "YanShi 安装器 — 范围=${SCOPE}, 演练=${DRY_RUN}, 接入MCP=${WITH_MCP}"
+  info "YanShi installer — scope=${SCOPE}, dry-run=${DRY_RUN}, with-mcp=${WITH_MCP}, skill=${SKILL_REG}" \
+       "YanShi 安装器 — 范围=${SCOPE}, 演练=${DRY_RUN}, 接入MCP=${WITH_MCP}, 注册skill=${SKILL_REG}"
   check_prereqs
   case "${SCOPE}" in
     local)  install_local ;;
     global) install_global ;;
     *)      die "invalid scope: ${SCOPE}" "无效的安装范围: ${SCOPE}" 2 ;;
   esac
+  register_skill
   wire_mcp
   run_doctor
   info "Done. Docs: https://yorha-agents.github.io/YanShi/" \

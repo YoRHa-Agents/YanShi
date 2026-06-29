@@ -12,6 +12,7 @@ from yanshi.cli import app
 from yanshi.config import parse_config_file
 from yanshi.contracts import AgentState, AgentStatus, AllowMode, RunResult, RunSpec
 from yanshi.preflight import PreflightResult
+from yanshi.skill_install import SKILL_ENTRY, SKILL_NAME, SkillRegistration, SkillRegistrationError
 
 
 def test_cli_help_uses_yanshi_framing() -> None:
@@ -308,3 +309,64 @@ def test_cli_improve_honors_enabled_adapters(
     assert result.exit_code == 1
     assert "codex" in result.stdout
     assert "fatal_error" in result.stdout
+
+
+# --------------------------------------------------------------------------- #
+# skill register: register SKILL.md into agent skills homes
+# --------------------------------------------------------------------------- #
+
+
+def test_cli_skill_register_into_explicit_dir(tmp_path: Path) -> None:
+    skills = tmp_path / "skills"
+    result = CliRunner().invoke(app, ["skill", "register", "--skills-dir", str(skills)])
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    registered = skills / SKILL_NAME / SKILL_ENTRY
+    assert payload["registered"] == [str(registered)]
+    assert registered.is_file()
+
+
+def test_cli_skill_register_dry_run_writes_nothing(tmp_path: Path) -> None:
+    skills = tmp_path / "skills"
+    result = CliRunner().invoke(
+        app, ["skill", "register", "--skills-dir", str(skills), "--dry-run"]
+    )
+    assert result.exit_code == 0, result.stdout
+    assert json.loads(result.stdout)["dry_run"] is True
+    assert not (skills / SKILL_NAME).exists()
+
+
+def _empty_registration() -> SkillRegistration:
+    return SkillRegistration(
+        skill=SKILL_NAME, source="src", files=[], targets=[], registered=[], dry_run=False
+    )
+
+
+def test_cli_skill_register_no_home_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No Silent Failures: nothing registered -> non-zero + actionable stderr."""
+    monkeypatch.setattr(cli_module, "register_skill", lambda **_: _empty_registration())
+    result = CliRunner().invoke(app, ["skill", "register"])
+    assert result.exit_code == 1
+    assert "no agent skills home found" in result.stderr
+
+
+def test_cli_skill_register_best_effort_tolerates_no_home(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--best-effort` (installer use) warns but does not fail when no home exists."""
+    monkeypatch.setattr(cli_module, "register_skill", lambda **_: _empty_registration())
+    result = CliRunner().invoke(app, ["skill", "register", "--best-effort"])
+    assert result.exit_code == 0
+    assert "no agent skills home found" in result.stderr
+
+
+def test_cli_skill_register_source_error_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(**_: object) -> SkillRegistration:
+        raise SkillRegistrationError("no source")
+
+    monkeypatch.setattr(cli_module, "register_skill", boom)
+    result = CliRunner().invoke(app, ["skill", "register", "--skills-dir", "/tmp/whatever"])
+    assert result.exit_code == 1
+    assert "no source" in result.stderr

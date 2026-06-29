@@ -34,6 +34,8 @@ From a checkout, run it directly:
 | `--local` | Editable install into a project `.venv` (the default when no scope is given). Must run from a checkout. |
 | `--global` | Global tool install via `uv tool install` (falls back to `pipx`, then `pip install --user`). |
 | `--with-mcp` | Also print MCP wiring instructions and verify that `skill/mcp_server.py` imports. |
+| `--no-skill` | Skip registering `SKILL.md` into agent skills homes (registered by default). |
+| `--skill-dir DIR` | Register the skill into `DIR` instead of the auto-detected agent homes. |
 | `--dev` | Include the `dev` dependency group (pytest, ruff, mypy). |
 | `--docs` | Include the `docs` dependency group (MkDocs Material + i18n). |
 | `--dry-run` | Print every action without changing the system. |
@@ -71,6 +73,22 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev,docs]"   # extras are optional
 yanshi doctor
 ```
+
+## The skill is registered, not just installed
+
+Installing the `yanshi` CLI is necessary but **not sufficient** for a parent agent to *use* YanShi:
+the agent discovers YanShi by reading a registered `SKILL.md` under its skills home. The installer
+therefore registers the skill after installing the CLI (disable with `--no-skill`):
+
+```bash
+yanshi skill register                 # also run automatically by install.sh
+yanshi skill register --dry-run       # preview the target homes without writing
+```
+
+By default it auto-detects installed agent homes (`~/.cursor/skills`, `~/.claude/skills`,
+`~/.agents/skills`) and writes `<home>/yanshi/SKILL.md`; pass `--skills-dir DIR` to target a specific
+home. Registration works for global installs too — `SKILL.md` is bundled into the wheel, so no
+checkout is required. See the [CLI Reference](../cli/reference.md#skill-register) for details.
 
 ## Vendor CLIs are detected, not installed
 

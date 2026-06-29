@@ -29,6 +29,13 @@ cd YanShi
 The installer is `uv`-first with a `pip` + `venv` fallback. You can also install directly with
 `uv tool install .`, `uv sync`, or `pip install .`.
 
+The installer also **registers the skill** (`SKILL.md`) into your agent's skills home so a parent
+agent can discover YanShi. If you installed directly (without `install.sh`), register it yourself:
+
+```bash
+yanshi skill register        # detect ~/.cursor/skills, ~/.claude/skills, ~/.agents/skills
+```
+
 ## 2. Initialize a workspace config — `yanshi init`
 
 YanShi reads an optional repo-level `.yanshi.toml` (discovered by walking up from the current

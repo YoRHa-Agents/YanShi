@@ -35,7 +35,7 @@ _COPY_ITEMS = (
 )
 
 # Expected released version (kept in sync with pyproject / __init__).
-EXPECTED_VERSION = "1.2.0"
+EXPECTED_VERSION = "1.3.0"
 
 pytestmark = [
     pytest.mark.install_it,
@@ -91,7 +91,9 @@ def repo_copy(tmp_path: Path) -> Path:
 
 def test_local_install_produces_working_cli(repo_copy: Path) -> None:
     """`install.sh --local` yields an importable package + a runnable CLI."""
-    proc = _run_install(repo_copy, "--local", "--lang", "en")
+    # --no-skill keeps the test hermetic (skill registration is covered by its
+    # own tests, which target an isolated --skill-dir).
+    proc = _run_install(repo_copy, "--local", "--no-skill", "--lang", "en")
     assert proc.returncode == 0, f"install failed:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
 
     venv_yanshi = repo_copy / ".venv" / "bin" / "yanshi"
@@ -118,7 +120,7 @@ def test_local_install_produces_working_cli(repo_copy: Path) -> None:
 
 def test_local_install_with_docs_includes_mkdocs(repo_copy: Path) -> None:
     """`--docs` pulls the docs group so the site can be built locally."""
-    proc = _run_install(repo_copy, "--local", "--docs", "--lang", "en")
+    proc = _run_install(repo_copy, "--local", "--docs", "--no-skill", "--lang", "en")
     assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
     mkdocs_bin = repo_copy / ".venv" / "bin" / "mkdocs"
     assert mkdocs_bin.is_file(), "docs group did not install mkdocs"
@@ -126,16 +128,61 @@ def test_local_install_with_docs_includes_mkdocs(repo_copy: Path) -> None:
 
 def test_local_install_is_idempotent(repo_copy: Path) -> None:
     """Re-running the local install must succeed (idempotent)."""
-    first = _run_install(repo_copy, "--local", "--lang", "en")
+    first = _run_install(repo_copy, "--local", "--no-skill", "--lang", "en")
     assert first.returncode == 0, first.stderr
-    second = _run_install(repo_copy, "--local", "--lang", "en")
+    second = _run_install(repo_copy, "--local", "--no-skill", "--lang", "en")
     assert second.returncode == 0, second.stderr
     assert (repo_copy / ".venv" / "bin" / "yanshi").is_file()
 
 
+def test_local_install_registers_skill(repo_copy: Path, tmp_path: Path) -> None:
+    """`install.sh` registers SKILL.md so a parent agent can discover YanShi."""
+    skills = tmp_path / "skills"
+    proc = _run_install(
+        repo_copy, "--local", "--skill-dir", str(skills), "--lang", "en"
+    )
+    assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
+
+    registered = skills / "yanshi" / "SKILL.md"
+    assert registered.is_file(), "installer did not register SKILL.md into the skills dir"
+    # The registered contract documents the /devola-flow dispatch path.
+    assert "/devola-flow" in registered.read_text(encoding="utf-8")
+
+
+def test_local_install_no_skill_skips_registration(repo_copy: Path, tmp_path: Path) -> None:
+    skills = tmp_path / "skills"
+    proc = _run_install(
+        repo_copy, "--local", "--no-skill", "--skill-dir", str(skills), "--lang", "en"
+    )
+    assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
+    assert not (skills / "yanshi").exists()
+
+
+def test_global_install_registers_skill_from_packaged_data(
+    repo_copy: Path, tmp_path: Path
+) -> None:
+    """A global (non-editable) install registers from bundled wheel data."""
+    tool_dir = tmp_path / "uv_tools"
+    bin_dir = tmp_path / "uv_bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    skills = tmp_path / "skills"
+    proc = _run_install(
+        repo_copy,
+        "--global",
+        "--skill-dir",
+        str(skills),
+        "--lang",
+        "en",
+        env={"UV_TOOL_DIR": str(tool_dir), "UV_TOOL_BIN_DIR": str(bin_dir)},
+    )
+    assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
+    registered = skills / "yanshi" / "SKILL.md"
+    assert registered.is_file(), "global install did not register packaged SKILL.md"
+
+
 def test_local_install_with_mcp_verifies_imports(repo_copy: Path) -> None:
     """`--with-mcp` verifies the dispatch import and prints wiring guidance."""
-    proc = _run_install(repo_copy, "--local", "--with-mcp", "--lang", "en")
+    proc = _run_install(repo_copy, "--local", "--with-mcp", "--no-skill", "--lang", "en")
     assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
     assert "yanshi.dispatch" in proc.stdout
     assert "skill" in proc.stdout and "mcp_server" in proc.stdout
@@ -149,6 +196,7 @@ def test_global_install_onto_isolated_path(repo_copy: Path, tmp_path: Path) -> N
     proc = _run_install(
         repo_copy,
         "--global",
+        "--no-skill",
         "--lang",
         "en",
         env={"UV_TOOL_DIR": str(tool_dir), "UV_TOOL_BIN_DIR": str(bin_dir)},

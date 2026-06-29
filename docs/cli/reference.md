@@ -50,6 +50,32 @@ yanshi init --global        # write $YANSHI_HOME/config.toml
 yanshi init --force         # overwrite an existing file
 ```
 
+## skill register
+
+Register the YanShi skill (`SKILL.md`) into agent skills homes so a parent agent (Cursor / Claude /
+...) can discover YanShi as a skill. This is what makes the dispatch verbs usable from an agent — the
+installer runs it automatically, and you can re-run it any time.
+
+```text
+yanshi skill register [--skills-dir DIR] [--dry-run] [--best-effort]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--skills-dir` | auto-detect | Skills home to register into. When omitted, detect installed homes (`~/.cursor/skills`, `~/.claude/skills`, `~/.agents/skills`). |
+| `--dry-run` | off | Plan the registration (report the source and target homes) without touching disk. |
+| `--best-effort` | off | Do not exit non-zero when no agent skills home is found (used by the installer). |
+
+Prints a JSON report (`skill`, `source`, `files`, `targets`, `registered`, `dry_run`). Exits `1` when
+the source `SKILL.md` cannot be located or a copy fails, and (unless `--best-effort`) when nothing was
+registered. Registration is idempotent — an existing registration is overwritten in place.
+
+```bash
+yanshi skill register                          # register into detected agent homes
+yanshi skill register --skills-dir ~/.cursor/skills
+yanshi skill register --dry-run                # preview targets without writing
+```
+
 ## config
 
 Print the effective layered configuration and its provenance as JSON — built-in defaults < global

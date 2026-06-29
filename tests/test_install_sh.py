@@ -72,6 +72,14 @@ def test_help_lists_core_flags() -> None:
     assert "--global" in out
 
 
+def test_help_lists_skill_flags() -> None:
+    result = _run(["--help"])
+    assert result.returncode == 0, result.stderr
+    out = result.stdout.lower()
+    assert "--no-skill" in out
+    assert "--skill-dir" in out
+
+
 def test_help_chinese_under_zh_locale() -> None:
     result = _run(["--help"], env={"LANG": "zh_CN.UTF-8"})
     assert result.returncode == 0, result.stderr
@@ -85,6 +93,38 @@ def test_dry_run_local_is_side_effect_free_and_editable() -> None:
     assert "[dry-run]" in combined, "dry-run output must carry a [dry-run] marker"
     indicates_local = ("local" in combined) or ("editable" in combined)
     assert indicates_local, "dry-run --local must indicate a local/editable install"
+
+
+def test_dry_run_local_registers_skill_by_default() -> None:
+    result = _run(["--dry-run", "--local"], env={"LANG": "en_US.UTF-8"})
+    assert result.returncode == 0, result.stderr
+    combined = (result.stdout + result.stderr).lower()
+    assert "[dry-run]" in combined
+    # The skill registration step must be planned by default.
+    assert "skill register" in combined
+
+
+def test_dry_run_no_skill_skips_registration() -> None:
+    result = _run(["--dry-run", "--local", "--no-skill"], env={"LANG": "en_US.UTF-8"})
+    assert result.returncode == 0, result.stderr
+    combined = (result.stdout + result.stderr).lower()
+    assert "skipping skill registration" in combined
+    assert "skill register" not in combined
+
+
+def test_dry_run_skill_dir_is_forwarded() -> None:
+    result = _run(
+        ["--dry-run", "--local", "--skill-dir", "/tmp/custom-skills"],
+        env={"LANG": "en_US.UTF-8"},
+    )
+    assert result.returncode == 0, result.stderr
+    combined = result.stdout + result.stderr
+    assert "--skills-dir /tmp/custom-skills" in combined
+
+
+def test_skill_dir_requires_argument() -> None:
+    result = _run(["--skill-dir"], env={"LANG": "en_US.UTF-8"})
+    assert result.returncode != 0
 
 
 def test_dry_run_global_mentions_path() -> None:

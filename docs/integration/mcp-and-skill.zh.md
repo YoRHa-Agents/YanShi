@@ -2,6 +2,20 @@
 
 YanShi 旨在由一个*上层 agent* 驱动。两个交付面让这件事变得顺手:一个记录派发/监控动词与策略参数的 `SKILL.md` 契约,以及一个把这些动词暴露为可导入的 Python 可调用对象的小巧 MCP 服务器 shim。
 
+## 注册 skill
+
+上层 agent 只有在 `SKILL.md` 被*注册*到其 skills 目录后才能驱动 YanShi——仅安装 CLI 并不够。
+`install.sh` 会自动注册;你也可以随时(重新)注册:
+
+```bash
+yanshi skill register                  # 探测 ~/.cursor/skills、~/.claude/skills、~/.agents/skills
+yanshi skill register --skills-dir ~/.cursor/skills
+yanshi skill register --dry-run        # 预览目标而不写入
+```
+
+它会把 `SKILL.md`(以及 `mcp_server.py` 伴随文件)复制到 `<home>/yanshi/`。该操作幂等,且对全局安装
+同样可用(文件已打包进 wheel)。详见 [CLI 参考](../cli/reference.md#skill-register)。
+
 ## `SKILL.md` 契约
 
 `skill/SKILL.md` 是宿主 agent 阅读的渐进式披露契约。它的核心契约是:

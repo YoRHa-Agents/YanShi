@@ -33,6 +33,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/YanShi/main/install.sh
 | `--local` | 以可编辑模式安装到项目的 `.venv`(未指定作用域时的默认值)。必须从检出的仓库中运行。 |
 | `--global` | 通过 `uv tool install` 进行全局工具安装(回退到 `pipx`,再到 `pip install --user`)。 |
 | `--with-mcp` | 同时打印 MCP 接线说明,并验证 `skill/mcp_server.py` 能否导入。 |
+| `--no-skill` | 跳过把 `SKILL.md` 注册到 agent skills 目录(默认会注册)。 |
+| `--skill-dir DIR` | 把 skill 注册到 `DIR`,而不是自动探测的 agent 目录。 |
 | `--dev` | 包含 `dev` 依赖组(pytest、ruff、mypy)。 |
 | `--docs` | 包含 `docs` 依赖组(MkDocs Material + i18n)。 |
 | `--dry-run` | 打印每一步操作而不改动系统。 |
@@ -69,6 +71,21 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev,docs]"   # extras are optional
 yanshi doctor
 ```
+
+## skill 是被注册的,而不仅仅是被安装
+
+仅安装 `yanshi` CLI 还**不足以**让上层 agent *使用* YanShi:agent 是通过读取其 skills 目录下
+已注册的 `SKILL.md` 来发现 YanShi 的。因此安装器会在安装 CLI 之后注册 skill(用 `--no-skill`
+可关闭):
+
+```bash
+yanshi skill register                 # install.sh 也会自动执行
+yanshi skill register --dry-run       # 预览目标目录而不写入
+```
+
+默认会自动探测已安装的 agent 目录(`~/.cursor/skills`、`~/.claude/skills`、`~/.agents/skills`)
+并写入 `<home>/yanshi/SKILL.md`;用 `--skills-dir DIR` 可指定具体目录。全局安装同样可用——
+`SKILL.md` 已打包进 wheel,无需检出仓库。详见 [CLI 参考](../cli/reference.md#skill-register)。
 
 ## 厂商 CLI 只被检测,不被安装
 
