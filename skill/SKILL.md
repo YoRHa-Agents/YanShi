@@ -6,6 +6,11 @@ YanShi dispatches work to external agent CLIs (`claude`, `codex`, `cursor`, `gem
 the parent agent monitor them through compact status objects. Parent agents must poll
 `status`/`summary`; they must not read raw child streams into context.
 
+> **Registration.** This file is registered into your agent's skills home (e.g.
+> `~/.cursor/skills/yanshi/`, `~/.claude/skills/yanshi/`, `~/.agents/skills/yanshi/`) by the
+> installer. If it is missing, run `yanshi skill register` (or `./install.sh` again) to (re)register
+> it; `yanshi skill register --dry-run` previews the target homes without writing.
+
 ## Core contract
 
 1. Call `yanshi dispatch --wait <prompt>` for foreground CLI use, or the Python library
@@ -15,6 +20,20 @@ the parent agent monitor them through compact status objects. Parent agents must
 3. Poll `yanshi summary <agent_id>` for the advisory rolling summary.
 4. Use `yanshi wait <agent_id>` to block until a terminal state.
 5. Use `yanshi cancel <agent_id>` to interrupt a child process by recorded pid.
+
+## Dispatching a slash-command sub-skill (e.g. `/devola-flow`)
+
+The prompt is passed to the child CLI **verbatim** (no templating), so a parent agent can drive
+another skill or slash-command *inside* the dispatched sub-agent. To run a slash-command such as
+`/devola-flow` in a fresh, monitored sub-agent:
+
+```bash
+yanshi dispatch --cli claude "/devola-flow build a REST API for todos"
+```
+
+The child CLI receives `/devola-flow build a REST API for todos` exactly as written and activates its
+own `/devola-flow` skill; YanShi only dispatches and monitors it. Combine with `--allow`, `--effort`,
+`--model`, and `--timeout` to bound the sub-agent, and poll `status`/`summary` as usual.
 
 ## Policy arguments
 

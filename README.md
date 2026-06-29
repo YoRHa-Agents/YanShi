@@ -72,8 +72,10 @@ cd YanShi
 ./install.sh --local --dev
 ```
 
-The installer is `uv`-first with a `pip` + `venv` fallback. Other flags: `--with-mcp`, `--docs`,
-`--dry-run`, `--lang zh|en` (run `./install.sh --help` for the full list).
+The installer is `uv`-first with a `pip` + `venv` fallback. It also **registers the skill** so a
+parent agent can discover YanShi (skip with `--no-skill`, or target a home with `--skill-dir DIR`).
+Other flags: `--with-mcp`, `--docs`, `--dry-run`, `--lang zh|en` (run `./install.sh --help` for the
+full list).
 
 **`uv` directly:**
 
@@ -132,6 +134,7 @@ provided each value.
 | Command | Description |
 | --- | --- |
 | `yanshi doctor` | Check registered adapter executables and authentication state. |
+| `yanshi skill register [--skills-dir DIR] [--dry-run]` | Register `SKILL.md` into agent skills homes so a parent agent can discover YanShi. |
 | `yanshi dispatch [options] --wait "<prompt>"` | Blocking dispatch through the monitor kernel; prints a `RunResult` (CLI dispatch is always `--wait`). |
 | `yanshi improve "<prompt>" --check "<cmd>" [--max-iterations N]` | Bounded dispatch -> gate -> refine loop; prints an `ImproveResult`. |
 | `yanshi list` | List known agent ids. |

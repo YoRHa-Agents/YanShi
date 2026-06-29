@@ -4,6 +4,22 @@ YanShi is meant to be driven by a *parent agent*. Two delivery surfaces make tha
 `SKILL.md` contract that documents the dispatch/monitor verbs and policy arguments, and a tiny MCP
 server shim that exposes those verbs as importable Python callables.
 
+## Registering the skill
+
+A parent agent can only drive YanShi once `SKILL.md` is *registered* into its skills home — installing
+the CLI alone is not enough. `install.sh` registers it automatically; you can also (re)register at any
+time:
+
+```bash
+yanshi skill register                  # detect ~/.cursor/skills, ~/.claude/skills, ~/.agents/skills
+yanshi skill register --skills-dir ~/.cursor/skills
+yanshi skill register --dry-run        # preview targets without writing
+```
+
+This copies `SKILL.md` (and the `mcp_server.py` companion) to `<home>/yanshi/`. It is idempotent and
+works for global installs (the files are bundled into the wheel). See the
+[CLI Reference](../cli/reference.md#skill-register).
+
 ## The `SKILL.md` contract
 
 `skill/SKILL.md` is the progressive-disclosure contract a host agent reads. Its core contract is:

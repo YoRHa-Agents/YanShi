@@ -45,6 +45,31 @@ yanshi init --global        # write $YANSHI_HOME/config.toml
 yanshi init --force         # overwrite an existing file
 ```
 
+## skill register
+
+把 YanShi skill(`SKILL.md`)注册到 agent skills 目录,使上层 agent(Cursor / Claude / …)能把
+YanShi 当作 skill 发现。这正是让派发动词可被 agent 使用的关键——安装器会自动执行,你也可以随时重跑。
+
+```text
+yanshi skill register [--skills-dir DIR] [--dry-run] [--best-effort]
+```
+
+| 选项 | 默认 | 说明 |
+|---|---|---|
+| `--skills-dir` | 自动探测 | 要注册到的 skills 目录。省略时探测已安装目录(`~/.cursor/skills`、`~/.claude/skills`、`~/.agents/skills`)。 |
+| `--dry-run` | 关 | 仅规划注册(报告来源与目标目录)而不写入磁盘。 |
+| `--best-effort` | 关 | 当找不到任何 agent skills 目录时不以非零退出(供安装器使用)。 |
+
+打印一个 JSON 报告(`skill`、`source`、`files`、`targets`、`registered`、`dry_run`)。当找不到来源
+`SKILL.md` 或复制失败时退出 `1`;若没有注册任何目标(且未加 `--best-effort`)也退出 `1`。注册是幂等的
+——已有注册会被原地覆盖。
+
+```bash
+yanshi skill register                          # 注册到探测到的 agent 目录
+yanshi skill register --skills-dir ~/.cursor/skills
+yanshi skill register --dry-run                # 预览目标而不写入
+```
+
 ## config
 
 把生效的分层配置及其 provenance 以 JSON 打印——内置默认 < 全局 `$YANSHI_HOME/config.toml` < 本地 `./.yanshi.toml`。便于回答"这个默认到底从哪来?"。

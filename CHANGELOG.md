@@ -5,6 +5,37 @@ All notable changes to YanShi are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-29
+
+Skill registration. Closes the "installed but not registered" gap: the
+installer built the `yanshi` CLI but never placed `skill/SKILL.md` into an agent
+skills home, so parent agents (Cursor / Claude / ...) could not discover YanShi
+as a skill. See spec §1.2 / §7 (the skill layer is a first-class delivery
+surface).
+
+### Added
+
+- **`yanshi skill register`** — copy `SKILL.md` (and the `mcp_server.py`
+  companion) into agent skills homes so a parent agent can discover YanShi.
+  Auto-detects installed homes (`~/.cursor/skills`, `~/.claude/skills`,
+  `~/.agents/skills`); `--skills-dir DIR` targets an explicit home and
+  `--dry-run` previews without writing. Exits non-zero when nothing was
+  registered (No Silent Failures); `--best-effort` downgrades that to a warning
+  for installer use. New module `src/yanshi/skill_install.py`.
+- **Installer registration** — `install.sh` now registers the skill after
+  installing the CLI. New flags: `--no-skill` (opt out) and `--skill-dir DIR`
+  (explicit target). The step is best-effort and never fails the install, but
+  real errors are surfaced. A fresh `--global` install resolves the binary it
+  just installed (e.g. via `UV_TOOL_BIN_DIR`) instead of a stale `yanshi` on
+  `PATH`.
+- **Packaged skill data** — `SKILL.md` and `mcp_server.py` are bundled into the
+  wheel (`yanshi/_skill/…`) so `yanshi skill register` works for global installs
+  that have no checkout on disk; editable/local installs resolve the same files
+  from the repo `skill/` directory.
+- **`/devola-flow` dispatch contract** — `skill/SKILL.md` now documents
+  dispatching a slash-command sub-skill (the prompt is passed to the child CLI
+  verbatim, e.g. `yanshi dispatch --cli claude "/devola-flow …"`).
+
 ## [1.2.0] - 2026-06-25
 
 Formal YanShi 偃师 brand and public experience release.
@@ -83,6 +114,7 @@ configurable invocation defaults/levels). See spec §14 and governance G11.
   loop, MCP surface, and the bilingual userguide system. Released as commit
   `c24c828` ("Release v1.0.0: version bump + full install integration tests").
 
+[1.3.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/YoRHa-Agents/YanShi/compare/c24c828...v1.1.0
 [1.0.0]: https://github.com/YoRHa-Agents/YanShi/commit/c24c828

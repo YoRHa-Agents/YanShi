@@ -62,8 +62,9 @@ cd YanShi
 ./install.sh --local --dev
 ```
 
-安装器优先使用 `uv`，并以 `pip` + `venv` 兜底。其他参数：`--with-mcp`、`--docs`、`--dry-run`、
-`--lang zh|en`（完整列表见 `./install.sh --help`）。
+安装器优先使用 `uv`，并以 `pip` + `venv` 兜底。它还会**注册 skill**，以便上层 agent 能发现 YanShi
+（用 `--no-skill` 跳过，或用 `--skill-dir DIR` 指定目录）。其他参数：`--with-mcp`、`--docs`、
+`--dry-run`、`--lang zh|en`（完整列表见 `./install.sh --help`）。
 
 **直接用 `uv`：**
 
@@ -118,6 +119,7 @@ yanshi config                # 以 JSON 打印解析后的配置 + provenance
 | 命令 | 说明 |
 | --- | --- |
 | `yanshi doctor` | 检查已注册适配器的可执行文件与鉴权状态。 |
+| `yanshi skill register [--skills-dir DIR] [--dry-run]` | 把 `SKILL.md` 注册到 agent skills 目录，便于上层 agent 发现 YanShi。 |
 | `yanshi dispatch [options] --wait "<prompt>"` | 经监控内核做阻塞式派发，打印 `RunResult`（CLI 派发始终为 `--wait`）。 |
 | `yanshi improve "<prompt>" --check "<cmd>" [--max-iterations N]` | 有界的 dispatch -> check -> refine 循环，打印 `ImproveResult`。 |
 | `yanshi list` | 列出已知 agent id。 |

@@ -29,6 +29,7 @@ from yanshi.dispatch import status as status_run
 from yanshi.dispatch import summary as summary_run
 from yanshi.dispatch import wait as wait_run
 from yanshi.improve import improve_loop
+from yanshi.skill_install import SkillRegistrationError, register_skill
 from yanshi.store import StatusStore
 
 app = typer.Typer(
@@ -38,6 +39,56 @@ app = typer.Typer(
         "commands read deterministic control threads."
     )
 )
+
+skill_app = typer.Typer(
+    help="Register the YanShi skill (SKILL.md) so parent agents can discover it."
+)
+app.add_typer(skill_app, name="skill")
+
+
+@skill_app.command("register")
+def skill_register(
+    skills_dir: Annotated[
+        str | None,
+        typer.Option(
+            "--skills-dir",
+            help="Skills home to register into; defaults to detected agent homes.",
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Plan the registration without touching disk."),
+    ] = False,
+    best_effort: Annotated[
+        bool,
+        typer.Option(
+            "--best-effort",
+            help="Do not fail when no agent skills home is found (installer use).",
+        ),
+    ] = False,
+) -> None:
+    """Copy SKILL.md into agent skills homes so YanShi is discoverable as a skill."""
+
+    try:
+        report = register_skill(skills_dir=skills_dir, dry_run=dry_run)
+    except SkillRegistrationError as exc:
+        typer.echo(
+            json.dumps({"error": str(exc), "category": str(exc.category)}, ensure_ascii=False),
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(report.model_dump_json())
+    if not report.registered:
+        # No Silent Failures: surface that nothing was registered and tell the
+        # user how to fix it. Best-effort callers (the installer) only warn.
+        typer.echo(
+            "no agent skills home found; pass --skills-dir to choose one "
+            "(searched: ~/.cursor/skills, ~/.claude/skills, ~/.agents/skills)",
+            err=True,
+        )
+        if not best_effort:
+            raise typer.Exit(code=1)
 
 
 @app.command()

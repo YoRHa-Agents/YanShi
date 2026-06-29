@@ -29,6 +29,13 @@ cd YanShi
 安装器优先使用 `uv`,并以 `pip` + `venv` 兜底。你也可以直接用 `uv tool install .`、`uv sync` 或
 `pip install .` 安装。
 
+安装器还会把 skill(`SKILL.md`)**注册**到你的 agent skills 目录,以便上层 agent 发现 YanShi。
+若你是直接安装的(未用 `install.sh`),请自行注册:
+
+```bash
+yanshi skill register        # 探测 ~/.cursor/skills、~/.claude/skills、~/.agents/skills
+```
+
 ## 2. 初始化工作区配置 —— `yanshi init`
 
 YanShi 会读取一个可选的仓库级 `.yanshi.toml`(从当前目录沿父目录向上 walk 发现,语义同 `.git`)。
