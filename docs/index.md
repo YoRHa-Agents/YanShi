@@ -1,8 +1,10 @@
 <section class="ys-hero" markdown="1">
 
-# YanShi 偃师
+<h1 class="ys-wordmark"><span class="ys-wordmark__latin">YanShi</span> <span class="ys-wordmark__seal">偃师</span></h1>
 
-**Vendor-neutral sub-agent dispatch for parent agents that need control, not log noise.**
+<p class="ys-myth">In the Liezi, the artificer Yan Shi presents a figure that walks and sings — yet keeps one hand on every thread.</p>
+
+<p class="ys-lede">Vendor-neutral sub-agent dispatch for parent agents that need control, not log noise.</p>
 
 YanShi gives a parent agent one precise contract for spawning headless agent CLIs, then returns a
 deterministic, low-context view of each run. The raw stream remains on disk for audit; the parent
@@ -72,47 +74,25 @@ flowchart LR
 
 </section>
 
-<section class="ys-section ys-section--cards" markdown="1">
+<section class="ys-section" markdown="1">
 
 ## Safety and adapters
 
-<div class="ys-card-grid" markdown="1">
+Five invariants hold before any child process starts. They are the contract, not the marketing.
 
-<div class="ys-card" markdown="1">
+<div class="ys-ledger" markdown="1">
 
-### Safe defaults
+Safe defaults
+:   `read-only` is the default permission mode. `yolo` is never implied, and policy validation rejects unsafe combinations before a child process starts.
 
-`read-only` is the default permission mode. `yolo` is never implied, and policy validation rejects
-unsafe combinations before a child process starts.
+Faithful execution
+:   YanShi spawns every CLI from an argv list with `shell=False`. Prompts and improve-loop gates are never interpolated into a shell command line.
 
-</div>
+Explicit degradation
+:   Adapter capability gaps, missing pricing, gate failures, and runtime errors are surfaced as warnings or errors. Unsupported controls are never silently faked.
 
-<div class="ys-card" markdown="1">
-
-### Faithful execution
-
-YanShi spawns every CLI from an argv list with `shell=False`. Prompts and improve-loop gates are
-never interpolated into a shell command line.
-
-</div>
-
-<div class="ys-card" markdown="1">
-
-### Explicit degradation
-
-Adapter capability gaps, missing pricing, gate failures, and runtime errors are surfaced as warnings
-or errors. Unsupported controls are never silently faked.
-
-</div>
-
-<div class="ys-card" markdown="1">
-
-### Portable mechanisms
-
-Adapters cover `claude`, `codex`, `cursor`, and `gemini` while preserving the same `RunSpec`,
-`RunResult`, and `AgentStatus` contracts for the host.
-
-</div>
+Portable mechanisms
+:   Adapters cover `claude`, `codex`, `cursor`, and `gemini` while preserving the same `RunSpec`, `RunResult`, and `AgentStatus` contracts for the host.
 
 </div>
 

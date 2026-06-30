@@ -5,6 +5,43 @@ All notable changes to YanShi are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-30
+
+YanShi 偃师 visual identity. Turns the named "control thread" metaphor into a
+first-class, *drawn* identity across the public docs site, building on the v1.2.0
+brand foundation (`PRODUCT.md` / `DESIGN.md`). Code behavior, CLI, and JSON
+contracts are unchanged — this is a docs/design release.
+
+### Added
+
+- **Control-thread mark** — hand-authored SVG logo and favicon
+  (`docs/assets/yanshi-mark.svg`, `docs/assets/yanshi-favicon.svg`): a controller
+  beam dispatching tensioned amber threads to articulated mechanism-nodes — the
+  artificer working the automaton, and the parent agent dispatching sub-agents.
+- **Typography system** — engraved display (Fraunces) for major headings and the
+  hero wordmark, crisp sans (Inter) for prose, ritual mono (JetBrains Mono) for
+  commands, each with CJK fallbacks. Loaded via a minimal `overrides/main.html`
+  so the build needs no network.
+- **Palette contrast guard** — `tests/test_docs_palette_contrast.py` parses the
+  OKLCH tokens straight from the stylesheet and asserts every key text pairing
+  meets WCAG AA, so a future palette edit cannot silently regress legibility.
+
+### Changed
+
+- **Homepage (en/zh)** — a stamped `YanShi 偃师` wordmark with a maker's seal, a
+  restrained mythic epigraph from the Liezi, a hero "control frame" with a
+  reduced-motion-safe thread motif, the dispatch→monitor→pull flow beaded on a
+  single control thread, and refined section, table, code, and footer treatments.
+- **Safety & adapters** — the off-brand 2×2 card grid is replaced by a contract
+  "ledger" of invariants, per the `DESIGN.md` guidance to prefer contract tables
+  and thread-like flows over repeated cards.
+
+### Fixed
+
+- **Chinese docs anchors** — four cross-page links pointed at English heading
+  slugs the translated headings never generated; the destination zh headings now
+  pin explicit IDs so the links resolve under `mkdocs build --strict`.
+
 ## [1.3.0] - 2026-06-29
 
 Skill registration. Closes the "installed but not registered" gap: the
@@ -114,6 +151,7 @@ configurable invocation defaults/levels). See spec §14 and governance G11.
   loop, MCP surface, and the bilingual userguide system. Released as commit
   `c24c828` ("Release v1.0.0: version bump + full install integration tests").
 
+[1.4.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/YoRHa-Agents/YanShi/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/YoRHa-Agents/YanShi/compare/c24c828...v1.1.0

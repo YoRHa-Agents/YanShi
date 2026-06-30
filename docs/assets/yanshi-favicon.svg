@@ -1,0 +1,24 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="YanShi">
+  <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="#09090F" stroke="#262632" stroke-width="1.5" />
+
+  <!-- Controller beam + grip -->
+  <g stroke="#EFEBDE" stroke-width="2.8" stroke-linecap="round">
+    <path d="M12 14 H36" />
+    <path d="M24 14 V9" />
+  </g>
+
+  <!-- Tensioned control threads -->
+  <g stroke="#F3C624" stroke-width="2.2" stroke-linecap="round">
+    <path d="M15 15 L17 30" />
+    <path d="M24 15 V27" />
+    <path d="M33 15 L31 30" />
+  </g>
+
+  <!-- Side mechanism nodes -->
+  <circle cx="17" cy="33" r="3" stroke="#EFEBDE" stroke-width="2" fill="#09090F" />
+  <circle cx="31" cy="33" r="3" stroke="#EFEBDE" stroke-width="2" fill="#09090F" />
+
+  <!-- Primary controlled core -->
+  <circle cx="24" cy="31" r="5.2" fill="#09090F" stroke="#F0A900" stroke-width="2.2" />
+  <circle cx="24" cy="31" r="2" fill="#F3C624" />
+</svg>

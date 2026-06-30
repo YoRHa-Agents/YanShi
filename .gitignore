@@ -17,6 +17,9 @@
 # MkDocs build output
 site/
 
+# Design-review scratch (screenshots, helper scripts)
+.design-review/
+
 # Local execution artifacts
 .agent-worker-logs/
 .coverage

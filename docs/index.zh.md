@@ -1,8 +1,10 @@
 <section class="ys-hero" markdown="1">
 
-# YanShi 偃师
+<h1 class="ys-wordmark"><span class="ys-wordmark__latin">YanShi</span> <span class="ys-wordmark__seal">偃师</span></h1>
 
-**面向上层 agent 的厂商中立子智能体派发层：要控制线索，不要日志噪声。**
+<p class="ys-myth">《列子》记载，匠人偃师献上能行能歌的伶人——而每一根丝线，始终系于他手。</p>
+
+<p class="ys-lede">面向上层 agent 的厂商中立子智能体派发层：要控制线索，不要日志噪声。</p>
 
 YanShi 让上层 agent 用一套精确契约派生 headless agent CLI，并为每次运行返回确定性、
 低上下文的观察结果。原始流留在磁盘上供审计；上层只拉取真正需要的控制线索：
@@ -67,44 +69,25 @@ flowchart LR
 
 </section>
 
-<section class="ys-section ys-section--cards" markdown="1">
+<section class="ys-section" markdown="1">
 
 ## 安全与适配器
 
-<div class="ys-card-grid" markdown="1">
+子进程启动之前，有几条不变量始终成立。它们是契约，而非营销话术。
 
-<div class="ys-card" markdown="1">
+<div class="ys-ledger" markdown="1">
 
-### 默认安全
+默认安全
+:   `read-only` 是默认权限模式。`yolo` 绝不会被隐式启用；策略校验会在子进程启动前拒绝不安全组合。
 
-`read-only` 是默认权限模式。`yolo` 绝不会被隐式启用；策略校验会在子进程启动前拒绝不安全组合。
+忠实执行
+:   YanShi 始终用 argv 列表和 `shell=False` spawn CLI。prompt 与改进循环的闸门命令都不会被插入 shell 命令行。
 
-</div>
+显式降级
+:   适配器能力缺口、缺失价格、闸门失败和运行时错误都会进入警告或错误。YanShi 不会假装不支持的控制已经生效。
 
-<div class="ys-card" markdown="1">
-
-### 忠实执行
-
-YanShi 始终用 argv 列表和 `shell=False` spawn CLI。prompt 与改进循环的闸门命令都不会被插入 shell 命令行。
-
-</div>
-
-<div class="ys-card" markdown="1">
-
-### 显式降级
-
-适配器能力缺口、缺失价格、闸门失败和运行时错误都会进入警告或错误。YanShi 不会假装不支持的控制已经生效。
-
-</div>
-
-<div class="ys-card" markdown="1">
-
-### 可移植机制
-
-适配器覆盖 `claude`、`codex`、`cursor` 与 `gemini`，同时为宿主保留同一套 `RunSpec`、`RunResult`
-和 `AgentStatus` 契约。
-
-</div>
+可移植机制
+:   适配器覆盖 `claude`、`codex`、`cursor` 与 `gemini`，同时为宿主保留同一套 `RunSpec`、`RunResult` 和 `AgentStatus` 契约。
 
 </div>
 

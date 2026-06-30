@@ -54,11 +54,11 @@ yanshi doctor
 
 如果你看到过早的 `stalled`,很可能是子进程在停滞窗口内没有产生任何可解析的事件;请在 `RunSpec` 上调高相关超时,或检查 `stream.ndjson` 以查看那段静默期。
 
-## 陈旧的 running 被修正为 stalled
+## 陈旧的 running 被修正为 stalled { #stale-running-corrected-to-stalled }
 
 每次运行都记录一个 `owner_pid`(监控宿主)和一个 `child_pid`。如果某个读取器观察到一个非终态的 `running` 状态,但 `owner_pid` 已经**不再存活**,它会确定性地把状态改写为 `stalled`,并追加一个致命错误,说明 owner pid 已经消失。这正是一个孤儿子进程(在其监控宿主崩溃时被遗留下来)如何被诚实地暴露出来、而不是看起来永远在运行的方式。没有单独的心跳线程需要信任——存活性是在读取时从 owner pid 推导出来的。
 
-## 当定价缺失时成本守卫会降级
+## 当定价缺失时成本守卫会降级 { #cost-guard-degrades-when-pricing-is-missing }
 
 只有当成本已知时(`pricing_status` 为 `native` 或 `priced`),每次运行的花费上限才能以美元强制执行。当 `pricing_status` 为 `missing` 时,YanShi **不会**假装美元上限仍在生效。相反,它会降级为一个 **token 上限**,并记录一个警告以明确这种降级。如果你依赖一个硬性的美元上限,请确保该模型被原生成本报告覆盖,或被 `pricing-cache.json` 中的某个条目覆盖;否则请设置一个与你的风险承受度相匹配的 token 上限。参见 [安全与策略](concepts/safety.md) 和 [配置](reference/configuration.md)。
 
