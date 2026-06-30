@@ -87,7 +87,7 @@ yanshi skill register --dry-run       # 预览目标目录而不写入
 并写入 `<home>/yanshi/SKILL.md`;用 `--skills-dir DIR` 可指定具体目录。全局安装同样可用——
 `SKILL.md` 已打包进 wheel,无需检出仓库。详见 [CLI 参考](../cli/reference.md#skill-register)。
 
-## 厂商 CLI 只被检测,不被安装
+## 厂商 CLI 只被检测,不被安装 { #vendor-clis-are-detected-not-installed }
 
 YanShi 会把任务派发给厂商 CLI,但**不会**捆绑或安装它们。安装 YanShi 后,运行
 [`yanshi doctor`](../cli/reference.md#doctor) 查看哪些适配器拥有可用的可执行文件与鉴权:

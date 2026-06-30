@@ -1,0 +1,23 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="YanShi control-thread mark">
+  <!-- Controller beam (the artisan's frame) + grip -->
+  <g stroke="#EFEBDE" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 12 H38" />
+    <path d="M24 12 V7.5" />
+  </g>
+  <circle cx="24" cy="6.4" r="1.7" fill="#EFEBDE" />
+
+  <!-- Tensioned control threads dispatched from the beam -->
+  <g stroke="#F3C624" stroke-width="1.7" stroke-linecap="round">
+    <path d="M14 12.6 L16 30.4" />
+    <path d="M24 12.6 V26.7" />
+    <path d="M34 12.6 L32 30.4" />
+  </g>
+
+  <!-- Dispatched mechanism nodes (articulation points) -->
+  <circle cx="16" cy="33" r="2.6" stroke="#EFEBDE" stroke-width="1.7" fill="#09090F" />
+  <circle cx="32" cy="33" r="2.6" stroke="#EFEBDE" stroke-width="1.7" fill="#09090F" />
+
+  <!-- Primary mechanism: the controlled automaton core -->
+  <circle cx="24" cy="31.2" r="4.6" fill="#09090F" stroke="#F0A900" stroke-width="1.9" />
+  <circle cx="24" cy="31.2" r="1.7" fill="#F3C624" />
+</svg>

@@ -1,4 +1,12 @@
+/* =========================================================================
+   YanShi 偃师 — control-thread atelier
+   Mythic-dark command workshop: an artificer dispatches tensioned amber
+   control threads through precise mechanical forms.
+   Palette is OKLCH and WCAG-AA verified (see tests/test_docs_palette_contrast.py).
+   ========================================================================= */
+
 :root {
+  /* --- Palette (OKLCH; do not lower below AA — guarded by tests/test_docs_palette_contrast.py) --- */
   --color-bg: oklch(0.145 0.012 285);
   --color-surface: oklch(0.205 0.018 285);
   --color-surface-2: oklch(0.275 0.022 285);
@@ -8,10 +16,21 @@
   --color-thread-strong: oklch(0.78 0.18 82);
   --color-shadow: oklch(0.36 0.08 305);
   --color-danger: oklch(0.67 0.2 28);
+
+  /* --- Derived lines & glows --- */
   --ys-border: color-mix(in oklch, var(--color-thread) 26%, transparent);
   --ys-border-muted: color-mix(in oklch, var(--color-muted) 22%, transparent);
   --ys-glow: color-mix(in oklch, var(--color-thread) 14%, transparent);
-  --ys-max-width: 68rem;
+  --ys-thread: color-mix(in oklch, var(--color-thread) 42%, transparent);
+  --ys-thread-faint: color-mix(in oklch, var(--color-thread) 11%, transparent);
+  --ys-max-width: 70rem;
+
+  /* --- Typography: engraved display, crisp sans, ritual mono --- */
+  --ys-font-display: "Fraunces", "Songti SC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", Georgia, serif;
+  --ys-font-text: "Inter", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ys-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+  --md-text-font-family: var(--ys-font-text);
+  --md-code-font-family: var(--ys-font-mono);
 }
 
 [data-md-color-scheme="slate"],
@@ -36,16 +55,31 @@ html {
 }
 
 body {
+  font-family: var(--ys-font-text);
   background:
-    radial-gradient(circle at 78% 6%, color-mix(in oklch, var(--color-shadow) 24%, transparent), transparent 28rem),
-    linear-gradient(180deg, color-mix(in oklch, var(--color-surface) 36%, var(--color-bg)), var(--color-bg) 28rem);
+    radial-gradient(circle at 78% 6%, color-mix(in oklch, var(--color-shadow) 22%, transparent), transparent 30rem),
+    radial-gradient(circle at 4% 0%, color-mix(in oklch, var(--color-thread) 5%, transparent), transparent 26rem),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface) 34%, var(--color-bg)), var(--color-bg) 30rem);
 }
 
+/* --- Chrome: header, tabs, search --- */
 .md-header,
 .md-tabs {
-  background-color: color-mix(in oklch, var(--color-bg) 88%, black);
+  background-color: color-mix(in oklch, var(--color-bg) 86%, black);
   border-bottom: 1px solid var(--ys-border-muted);
-  box-shadow: 0 0.4rem 2rem color-mix(in oklch, black 28%, transparent);
+  box-shadow: 0 0.4rem 2rem color-mix(in oklch, black 30%, transparent);
+}
+
+.md-header__title {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.md-logo img,
+.md-logo svg {
+  height: 1.7rem;
+  width: auto;
+  filter: drop-shadow(0 0 0.5rem var(--ys-glow));
 }
 
 .md-search__form {
@@ -53,6 +87,11 @@ body {
   border: 1px solid var(--ys-border-muted);
 }
 
+.md-search__input::placeholder {
+  color: var(--color-muted);
+}
+
+/* --- Content frame --- */
 .md-main__inner {
   margin-top: 0;
 }
@@ -73,27 +112,38 @@ body {
   line-height: 1.72;
 }
 
+/* --- Headings: engraved display for the major plates --- */
 .md-typeset h1,
-.md-typeset h2,
-.md-typeset h3 {
+.md-typeset h2 {
+  font-family: var(--ys-font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
   color: var(--color-ink);
-  font-weight: 720;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.005em;
+}
+
+.md-typeset h3,
+.md-typeset h4 {
+  font-family: var(--ys-font-text);
+  font-weight: 680;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
 }
 
 .md-typeset h1 {
-  margin-bottom: 0.65rem;
-  font-size: clamp(2.5rem, 7vw, 5.7rem);
-  line-height: 0.95;
+  margin-bottom: 0.7rem;
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.04;
 }
 
 .md-typeset h2 {
-  margin-top: 0;
-  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  margin-top: 2.4rem;
+  font-size: clamp(1.4rem, 3vw, 2.05rem);
+  line-height: 1.12;
 }
 
 .md-typeset h3 {
-  font-size: 1.05rem;
+  font-size: 1.06rem;
 }
 
 .md-typeset p,
@@ -101,10 +151,12 @@ body {
   max-width: 74ch;
 }
 
+/* --- Links --- */
 .md-typeset a:not(.md-button) {
   text-decoration-color: color-mix(in oklch, var(--color-thread) 48%, transparent);
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
+  transition: color 140ms ease, text-decoration-color 140ms ease;
 }
 
 .md-typeset a:not(.md-button):hover {
@@ -112,17 +164,23 @@ body {
   text-decoration-color: currentcolor;
 }
 
+/* --- Focus: amber control ring everywhere --- */
 .md-typeset a:focus-visible,
 .md-typeset .md-button:focus-visible,
-.md-search__input:focus-visible {
+.md-search__input:focus-visible,
+.md-nav__link:focus-visible,
+.md-footer__link:focus-visible {
   outline: 0.16rem solid var(--color-thread-strong);
   outline-offset: 0.14rem;
+  border-radius: 0.2rem;
 }
 
+/* --- Buttons --- */
 .md-typeset .md-button {
   border-color: var(--ys-border);
   border-radius: 999rem;
   color: var(--color-ink);
+  font-weight: 560;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -144,6 +202,10 @@ body {
   color: color-mix(in oklch, var(--color-bg) 88%, black);
 }
 
+/* =========================================================================
+   Hero — the control frame
+   ========================================================================= */
+
 .ys-hero,
 .ys-section {
   position: relative;
@@ -156,40 +218,141 @@ body {
 
 .ys-hero {
   overflow: hidden;
-  padding: clamp(1.5rem, 5vw, 3.8rem);
+  padding: clamp(1.8rem, 5vw, 4rem);
   border-color: color-mix(in oklch, var(--color-thread) 34%, transparent);
 }
 
+/* Layer 1: the beam + tensioned control threads draping from it. */
 .ys-hero::before {
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
+  transform-origin: top center;
+  background-image:
+    linear-gradient(90deg, transparent, var(--ys-thread) 18%, var(--ys-thread) 82%, transparent),
+    repeating-linear-gradient(90deg, transparent 0 3.3rem, var(--ys-thread-faint) 3.3rem calc(3.3rem + 1px));
+  background-repeat: no-repeat, repeat;
+  background-position: 0 1.7rem, 0 0;
+  background-size: 100% 1px, 100% 100%;
+  -webkit-mask-image: linear-gradient(180deg, black 0, black 30%, transparent 96%);
+  mask-image: linear-gradient(180deg, black 0, black 30%, transparent 96%);
+  animation: ys-thread-draw 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Layer 2: focal glow + one brighter "active" thread near the wordmark. */
+.ys-hero::after {
   content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background:
-    linear-gradient(90deg, transparent, var(--ys-border), transparent) 0 26% / 100% 1px no-repeat,
-    radial-gradient(circle at 72% 20%, var(--ys-glow), transparent 19rem);
+    radial-gradient(circle at 76% 16%, var(--ys-glow), transparent 20rem);
 }
 
 .ys-hero > * {
   position: relative;
+  z-index: 1;
 }
 
-.ys-hero p:first-of-type {
-  max-width: 46rem;
-  margin-top: 0;
+@keyframes ys-thread-draw {
+  from {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* Wordmark: engraved latin + a stamped maker's seal. */
+.md-typeset .ys-wordmark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1em 0.45em;
+  margin: 0 0 0.9rem;
+  font-family: var(--ys-font-display);
+  font-size: clamp(2.7rem, 9vw, 5.6rem);
+  line-height: 0.98;
+}
+
+.md-typeset .ys-wordmark .headerlink {
+  display: none;
+}
+
+.ys-wordmark__latin {
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--color-ink);
-  font-size: clamp(1.05rem, 2.2vw, 1.45rem);
-  line-height: 1.45;
 }
 
-.ys-hero p:nth-of-type(2) {
-  max-width: 54rem;
-  color: var(--color-muted);
-  font-size: clamp(0.92rem, 1.6vw, 1.08rem);
+.ys-wordmark__seal {
+  align-self: center;
+  padding: 0.08em 0.34em 0.12em;
+  border: 1px solid color-mix(in oklch, var(--color-thread) 60%, transparent);
+  border-radius: 0.26em;
+  background: color-mix(in oklch, var(--color-thread) 9%, transparent);
+  color: var(--color-thread);
+  font-size: 0.4em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
+
+/* Mythic note — restrained, redundant with the prose, never the only signal. */
+.md-typeset p.ys-myth {
+  position: relative;
+  max-width: 44rem;
+  margin: 0 0 1.2rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--ys-thread);
+  color: var(--color-muted);
+  font-family: var(--ys-font-display);
+  font-style: italic;
+  font-size: clamp(0.95rem, 1.7vw, 1.12rem);
+  line-height: 1.5;
+}
+
+.md-typeset p.ys-lede {
+  max-width: 46rem;
+  margin: 0 0 0.8rem;
+  color: var(--color-ink);
+  font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+  font-weight: 560;
+  line-height: 1.4;
+}
+
+.ys-hero p:not(.ys-myth):not(.ys-lede) {
+  max-width: 52rem;
+  color: var(--color-muted);
+  font-size: clamp(0.9rem, 1.5vw, 1.04rem);
+}
+
+.ys-hero .md-button:first-of-type {
+  margin-top: 0.6rem;
+}
+
+/* =========================================================================
+   Sections + plate headers
+   ========================================================================= */
 
 .ys-section {
-  padding: clamp(1.1rem, 3vw, 2rem);
+  padding: clamp(1.2rem, 3vw, 2.1rem);
+}
+
+.md-typeset .ys-section > h2:first-child {
+  margin-top: 0;
+}
+
+.md-typeset .ys-section h2::after {
+  content: "";
+  display: block;
+  width: 2.6rem;
+  height: 2px;
+  margin-top: 0.55rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-thread), transparent);
 }
 
 .ys-section--thread {
@@ -200,27 +363,39 @@ body {
 }
 
 .ys-section--thread::before {
+  content: "";
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
   left: 1.25rem;
   height: 1px;
   pointer-events: none;
-  content: "";
-  background: linear-gradient(90deg, transparent, var(--ys-border), transparent);
+  background: linear-gradient(90deg, transparent, var(--ys-thread), transparent);
 }
 
-.ys-section--cards {
-  background: color-mix(in oklch, var(--color-surface) 78%, black);
-}
+/* =========================================================================
+   Flow — dispatch → monitor → pull, beaded on a single control thread
+   ========================================================================= */
 
 .ys-flow {
-  counter-reset: ys-step;
+  position: relative;
+}
+
+.ys-flow::before {
+  content: "";
+  position: absolute;
+  top: 1.6rem;
+  bottom: 1.6rem;
+  left: 1.72rem;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--color-thread), var(--ys-thread) 60%, transparent);
 }
 
 .ys-flow ol {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.85rem;
+  margin: 0;
   padding-left: 0;
   list-style: none;
 }
@@ -228,53 +403,80 @@ body {
 .ys-flow li {
   position: relative;
   max-width: none;
-  padding: 0.95rem 1rem 0.95rem 3.2rem;
+  padding: 0.95rem 1.1rem 0.95rem 3.3rem;
   border: 1px solid var(--ys-border-muted);
   border-radius: 0.9rem;
-  background-color: color-mix(in oklch, var(--color-bg) 55%, var(--color-surface));
+  background-color: color-mix(in oklch, var(--color-bg) 52%, var(--color-surface));
 }
 
 .ys-flow li::before {
+  content: counter(list-item);
   position: absolute;
-  top: 0.9rem;
+  top: 0.85rem;
   left: 1rem;
   display: grid;
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.5rem;
+  height: 1.5rem;
   place-items: center;
-  border: 1px solid var(--ys-border);
+  border: 1px solid var(--color-thread);
   border-radius: 50%;
+  background-color: color-mix(in oklch, var(--color-bg) 70%, var(--color-surface));
   color: var(--color-thread);
-  content: counter(list-item);
+  font-family: var(--ys-font-mono);
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
-.ys-card-grid {
+/* =========================================================================
+   Ledger — a contract of invariants (replaces off-brand card grids)
+   ========================================================================= */
+
+.ys-ledger dl {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: minmax(8.5rem, 15rem) 1fr;
+  column-gap: 1.6rem;
+  margin: 0;
 }
 
-.ys-card {
-  min-height: 100%;
-  padding: 1rem;
-  border: 1px solid var(--ys-border-muted);
-  border-radius: 0.95rem;
-  background:
-    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-2) 64%, transparent), color-mix(in oklch, var(--color-surface) 88%, transparent));
+.ys-ledger dt {
+  position: relative;
+  margin: 0;
+  padding: 0.95rem 0 0.95rem 1.3rem;
+  border-top: 1px solid var(--ys-border-muted);
+  color: var(--color-ink);
+  font-weight: 700;
+  letter-spacing: -0.005em;
 }
 
-.ys-card h3 {
-  margin-top: 0;
+.ys-ledger dt::before {
+  content: "";
+  position: absolute;
+  top: 1.45rem;
+  left: 0;
+  width: 0.72rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-thread);
 }
 
-.ys-card p:last-child {
-  margin-bottom: 0;
+.ys-ledger dd {
+  margin: 0;
+  padding: 0.95rem 0;
+  border-top: 1px solid var(--ys-border-muted);
+  color: var(--color-muted);
+}
+
+.ys-ledger dd code {
+  color: color-mix(in oklch, var(--color-thread) 80%, var(--color-ink));
 }
 
 .ys-next {
   border-color: var(--ys-border);
 }
+
+/* =========================================================================
+   Tables, code, admonitions, footer
+   ========================================================================= */
 
 .md-typeset table:not([class]) {
   overflow: hidden;
@@ -286,15 +488,21 @@ body {
 .md-typeset table:not([class]) th {
   background-color: var(--color-surface-2);
   color: var(--color-ink);
+  font-weight: 640;
 }
 
 .md-typeset table:not([class]) td {
   border-top-color: var(--ys-border-muted);
 }
 
+.md-typeset table:not([class]) tr:hover {
+  background-color: color-mix(in oklch, var(--color-thread) 5%, transparent);
+}
+
 .md-typeset code,
 .md-typeset pre {
-  border-radius: 0.35rem;
+  border-radius: 0.4rem;
+  font-feature-settings: "liga" 0, "calt" 1;
 }
 
 .md-typeset code {
@@ -303,12 +511,14 @@ body {
 
 .md-typeset pre > code {
   border: 1px solid var(--ys-border-muted);
+  border-top: 2px solid color-mix(in oklch, var(--color-thread) 40%, transparent);
   color: var(--color-ink);
 }
 
 .md-typeset .admonition,
 .md-typeset details {
   border-color: var(--ys-border);
+  border-radius: 0.7rem;
   background-color: color-mix(in oklch, var(--color-surface) 78%, transparent);
 }
 
@@ -316,6 +526,33 @@ body {
 .md-typeset summary {
   background-color: color-mix(in oklch, var(--color-thread) 12%, transparent);
   color: var(--color-ink);
+  font-weight: 600;
+}
+
+/* Mermaid diagrams sit on a workshop plate. */
+.md-typeset .mermaid {
+  padding: 1rem;
+  border: 1px solid var(--ys-border-muted);
+  border-radius: 0.9rem;
+  background-color: color-mix(in oklch, var(--color-bg) 50%, var(--color-surface));
+}
+
+.md-footer {
+  border-top: 1px solid var(--ys-border-muted);
+}
+
+.md-footer-meta {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-thread) 14%, transparent);
+}
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+
+@media screen and (max-width: 59.984375em) {
+  .md-nav--primary .md-nav__title[for="__drawer"] {
+    background-color: color-mix(in oklch, var(--color-bg) 88%, black);
+  }
 }
 
 @media screen and (max-width: 48rem) {
@@ -324,8 +561,19 @@ body {
     padding-left: 0.8rem;
   }
 
-  .ys-card-grid {
+  .ys-ledger dl {
     grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+
+  .ys-ledger dt {
+    padding-bottom: 0.2rem;
+    border-top: 1px solid var(--ys-border-muted);
+  }
+
+  .ys-ledger dd {
+    padding-top: 0.35rem;
+    border-top: 0;
   }
 
   .ys-hero,
@@ -333,6 +581,10 @@ body {
     border-radius: 0.95rem;
   }
 }
+
+/* =========================================================================
+   Reduced motion — replace movement with instant, fully-visible states
+   ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -342,6 +594,11 @@ body {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .ys-hero::before {
+    transform: none;
+    opacity: 1;
   }
 
   .md-typeset .md-button:hover {

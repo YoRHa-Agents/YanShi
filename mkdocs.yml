@@ -10,10 +10,13 @@ copyright: Copyright &copy; 2026 YoRHa-Agents - MIT License
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
+  font: false
+  logo: assets/yanshi-mark.svg
+  favicon: assets/yanshi-favicon.svg
   icon:
     repo: fontawesome/brands/github
-    logo: material/source-branch
   features:
     - navigation.tracking
     - navigation.sections
@@ -25,6 +28,7 @@ theme:
     - search.share
     - content.code.copy
     - content.code.annotate
+    - content.action.edit
     - content.tabs.link
   palette:
     - media: "(prefers-color-scheme: dark)"
